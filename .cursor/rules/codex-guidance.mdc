@@ -1,0 +1,14 @@
+---
+description: Prevent hallucination and overengineering
+globs: "{README.md,docs/**/*.md}"
+alwaysApply: false
+---
+
+# Codex Guidance
+
+- Do not invent features or capabilities.
+- Do not add frameworks unless explicitly requested.
+- Treat content JSON as the source of truth for behavior.
+- Prefer planning before coding when scope is unclear.
+- Ask before expanding scope or adding new files.
+- Keep changes minimal and aligned to stated requirements.
