@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import com.web2app.cms.ui.theme.Web2appcmsTheme
 import androidx.compose.runtime.*
 import androidx.compose.runtime.LaunchedEffect
+import okhttp3.CacheControl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import kotlinx.coroutines.Dispatchers
@@ -47,6 +48,7 @@ class MainActivity : ComponentActivity() {
                         withContext(Dispatchers.IO) {
                             val request = Request.Builder()
                                 .url(url)
+                                .cacheControl(CacheControl.FORCE_NETWORK)
                                 .build()
                             client.newCall(request).execute().use { response ->
                                 FetchResult(response.body?.string(), response.code)
