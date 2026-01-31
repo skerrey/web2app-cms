@@ -42,3 +42,4 @@ android/*.iml
 # Temporary files
 *.tmp
 *.swp
+.vercel
