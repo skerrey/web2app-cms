@@ -1,7 +1,7 @@
 const state = {
   data: null,
-  sourcePath: "../content/content.json",
-  manifestPath: "../content/manifest.json",
+  sourcePath: "/content/content.json",
+  manifestPath: "/content/manifest.json",
   manifest: null,
   isDirty: false,
   isPublishing: false
@@ -151,16 +151,6 @@ const renderPages = () => {
 
     pagesEl.appendChild(pageEl);
   });
-};
-
-const getEnvValue = (key) => {
-  if (typeof window === "undefined") return "";
-  return (
-    window[key] ||
-    (window.__ENV__ && window.__ENV__[key]) ||
-    (window.ENV && window.ENV[key]) ||
-    ""
-  );
 };
 
 const validateManifestJson = (manifest) => {
