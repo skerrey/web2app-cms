@@ -14,8 +14,12 @@
     }
   ],
   "routes": [
+    { "src": "/api/(.*)", "dest": "/api/$1" },
+    { "src": "/content/(.*)", "dest": "/content/$1" },
+    { "src": "/assets/(.*)", "dest": "/admin/dist/assets/$1" },
     { "src": "/admin$", "dest": "/admin/dist/index.html" },
     { "src": "/admin/(.*)", "dest": "/admin/dist/$1" },
-    { "src": "/api/(.*)", "dest": "/api/$1" }
+    { "src": "/", "dest": "/admin/dist/index.html" },
+    { "src": "/(.*)", "dest": "/admin/dist/$1" }
   ]
 }
