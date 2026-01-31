@@ -1,6 +1,8 @@
 const state = {
   data: null,
   sourcePath: "../content/content.json",
+  manifestPath: "../content/manifest.json",
+  manifest: null,
   isDirty: false,
   isPublishing: false
 }
@@ -33,23 +35,35 @@ const loadContent = async () => {
   outputEl.value = ""
 
   try {
-    const response = await fetch(state.sourcePath, { cache: "no-store" })
-    if (!response.ok) {
+    const [contentResponse, manifestResponse] = await Promise.all([
+      fetch(state.sourcePath, { cache: "no-store" }),
+      fetch(state.manifestPath, { cache: "no-store" })
+    ])
+    if (!contentResponse.ok) {
       throw new Error("Unable to load content.json")
     }
-    const json = await response.json()
-    if (!json || !Array.isArray(json.pages)) {
+    if (!manifestResponse.ok) {
+      throw new Error("Unable to load manifest.json")
+    }
+    const contentJson = await contentResponse.json()
+    const manifestJson = await manifestResponse.json()
+    if (!contentJson || !Array.isArray(contentJson.pages)) {
       throw new Error("Invalid content.json structure")
     }
-    state.data = json
+    if (!manifestJson || !Array.isArray(manifestJson.pagesOrder)) {
+      throw new Error("Invalid manifest.json structure")
+    }
+    state.data = contentJson
+    state.manifest = manifestJson
     state.isDirty = false
     setPublishEnabled(false)
     renderPages()
-    setStatus("Loaded content.json")
+    setStatus("Loaded content.json and manifest.json")
   } catch (error) {
     setStatus(error.message)
     pagesEl.innerHTML = ""
     state.data = null
+    state.manifest = null
     state.isDirty = false
     setPublishEnabled(false)
   }
@@ -179,6 +193,41 @@ const validateContentJson = (content) => {
 
 const toBase64 = (value) => {
   return btoa(unescape(encodeURIComponent(value)))
+}
+
+const buildContentJson = () => {
+  if (!state.data) return null
+  return {
+    pages: state.data.pages.map((page) => ({
+      id: page.id,
+      title: page.title,
+      blocks: Array.isArray(page.blocks)
+        ? page.blocks
+            .filter((block) => block && block.type === "text")
+            .map((block) => ({
+              type: "text",
+              text: block.text
+            }))
+        : []
+    }))
+  }
+}
+
+const buildManifestJson = () => {
+  if (!state.manifest || !state.data) return null
+  return {
+    schemaVersion: state.manifest.schemaVersion,
+    contentVersion: state.manifest.contentVersion,
+    compatibleAppVersions: {
+      min: state.manifest.compatibleAppVersions?.min || "",
+      max: state.manifest.compatibleAppVersions?.max || ""
+    },
+    pagesOrder: state.data.pages.map((page) => page.id),
+    featureFlags: {
+      showWelcomeBanner: Boolean(state.manifest.featureFlags?.showWelcomeBanner),
+      enableHelpLink: Boolean(state.manifest.featureFlags?.enableHelpLink)
+    }
+  }
 }
 
 const publishToGitHub = async () => {
