@@ -17,7 +17,7 @@ android {
         buildConfigField(
             "String",
             "BASE_URL",
-            "\"https://web2app-23pg2z37y-skerreys-projects.vercel.app\""
+            "\"https://web2app-cms.vercel.app\""
         )
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
