@@ -247,147 +247,41 @@ const publishToGitHub = async () => {
     return;
   }
 
-  const token = import.meta.env.VITE_GITHUB_TOKEN;
-  const owner = import.meta.env.VITE_GITHUB_OWNER;
-  const repo = import.meta.env.VITE_GITHUB_REPO;  
-
-  if (!token || !owner || !repo) {
-    const missing = [];
-    if (!token) missing.push("VITE_GITHUB_TOKEN");
-    if (!owner) missing.push("VITE_GITHUB_OWNER");
-    if (!repo) missing.push("VITE_GITHUB_REPO");
-    const message = `Missing GitHub environment values: ${missing.join(", ")}`;
-    setStatus("Missing GitHub environment values");
-    console.error(message);
-    return;
-  }
-
-  const manifestJson = JSON.stringify(manifest, null, 2);
-  const contentJson = JSON.stringify(content, null, 2);
-
   state.isPublishing = true;
   setPublishEnabled(false);
   setStatus("Publishing to GitHub...");
 
-  const apiBase = "https://api.github.com";
-  const headers = {
-    Authorization: `Bearer ${token}`,
-    Accept: "application/vnd.github+json"
-  };
-
-  const githubRequest = async (url, options = {}) => {
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        ...headers,
-        ...(options.headers || {})
-      }
-    });
-    const text = await response.text();
-    if (!response.ok) {
-      const detail = text ? `: ${text}` : "";
-      throw new Error(`GitHub request failed (${response.status})${detail}`);
-    }
-    return text ? JSON.parse(text) : null;
-  };
-
-  const readFileSha = async (path) => {
-    try {
-      const data = await githubRequest(`${apiBase}/repos/${owner}/${repo}/contents/${path}`);
-      return data ? data.sha : null;
-    } catch (error) {
-      if (String(error.message).includes("(404)")) {
-        return null;
-      }
-      throw error;
-    }
-  };
-
   try {
-    await Promise.all([
-      readFileSha("content/manifest.json"),
-      readFileSha("content/content.json")
-    ]);
+    const response = await fetch("/api/publish", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        manifest,
+        content
+      })
+    });
 
-    const refData = await githubRequest(
-      `${apiBase}/repos/${owner}/${repo}/git/ref/heads/main`
-    );
-    const baseCommitSha = refData.object.sha;
-    const baseCommit = await githubRequest(
-      `${apiBase}/repos/${owner}/${repo}/git/commits/${baseCommitSha}`
-    );
-    const baseTreeSha = baseCommit.tree.sha;
-
-    const manifestBlob = await githubRequest(
-      `${apiBase}/repos/${owner}/${repo}/git/blobs`,
-      {
-        method: "POST",
-        body: JSON.stringify({
-          content: toBase64(manifestJson),
-          encoding: "base64"
-        })
+    const responseText = await response.text();
+    let responseJson = null;
+    if (responseText) {
+      try {
+        responseJson = JSON.parse(responseText);
+      } catch (parseError) {
+        responseJson = null;
       }
-    );
-    const contentBlob = await githubRequest(
-      `${apiBase}/repos/${owner}/${repo}/git/blobs`,
-      {
-        method: "POST",
-        body: JSON.stringify({
-          content: toBase64(contentJson),
-          encoding: "base64"
-        })
-      }
-    );
+    }
 
-    const tree = await githubRequest(
-      `${apiBase}/repos/${owner}/${repo}/git/trees`,
-      {
-        method: "POST",
-        body: JSON.stringify({
-          base_tree: baseTreeSha,
-          tree: [
-            {
-              path: "content/manifest.json",
-              mode: "100644",
-              type: "blob",
-              sha: manifestBlob.sha
-            },
-            {
-              path: "content/content.json",
-              mode: "100644",
-              type: "blob",
-              sha: contentBlob.sha
-            }
-          ]
-        })
-      }
-    );
+    if (!response.ok) {
+      const serverMessage = responseJson && responseJson.error
+        ? responseJson.error
+        : "Publish failed";
+      throw new Error(serverMessage);
+    }
 
-    const commit = await githubRequest(
-      `${apiBase}/repos/${owner}/${repo}/git/commits`,
-      {
-        method: "POST",
-        body: JSON.stringify({
-          message: "Update content JSON",
-          tree: tree.sha,
-          parents: [baseCommitSha]
-        })
-      }
-    );
-
-    await githubRequest(
-      `${apiBase}/repos/${owner}/${repo}/git/refs/heads/main`,
-      {
-        method: "PATCH",
-        body: JSON.stringify({
-          sha: commit.sha,
-          force: false
-        })
-      }
-    );
-
-    outputEl.value = contentJson;
     state.isDirty = false;
+    setPublishEnabled(false);
     setStatus("Published successfully");
   } catch (error) {
     setStatus(error.message || "Publish failed");
