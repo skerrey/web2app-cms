@@ -261,10 +261,6 @@ const publishToGitHub = async () => {
     return;
   }
 
-  const token = getEnvValue("VITE_GITHUB_TOKEN");
-  const owner = getEnvValue("VITE_GITHUB_OWNER");
-  const repo = getEnvValue("VITE_GITHUB_REPO");
-
   if (!token || !owner || !repo) {
     const missing = [];
     if (!token) missing.push("VITE_GITHUB_TOKEN");
