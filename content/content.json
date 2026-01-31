@@ -22,6 +22,37 @@
           },
           "styles": {},
           "text": "Check the latest updates in the News section."
+        },
+        {
+          "id": "block_vosyjs76m",
+          "type": "grid",
+          "data": {
+            "columns": 2,
+            "cells": [
+              {
+                "id": "cell_c1qk660o1",
+                "blocks": []
+              },
+              {
+                "id": "cell_79mslz3e0",
+                "blocks": [
+                  {
+                    "id": "block_f7zanrjkm",
+                    "type": "button",
+                    "data": {
+                      "label": "About Page",
+                      "url": "/about"
+                    },
+                    "styles": {
+                      "width": "fit-content",
+                      "backgroundColor": "skyblue"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "styles": {}
         }
       ]
     },
