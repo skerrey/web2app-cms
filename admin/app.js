@@ -13,10 +13,6 @@ const outputEl = document.getElementById("output");
 const reloadButton = document.getElementById("reloadButton");
 const publishButton = document.getElementById("publishButton");
 
-const token = import.meta.env.VITE_GITHUB_TOKEN;
-const owner = import.meta.env.VITE_GITHUB_OWNER;
-const repo = import.meta.env.VITE_GITHUB_REPO;
-
 const setStatus = (message) => {
   statusEl.textContent = message;
 };
@@ -260,6 +256,10 @@ const publishToGitHub = async () => {
     setStatus(contentError);
     return;
   }
+
+  const token = import.meta.env.VITE_GITHUB_TOKEN;
+  const owner = import.meta.env.VITE_GITHUB_OWNER;
+  const repo = import.meta.env.VITE_GITHUB_REPO;  
 
   if (!token || !owner || !repo) {
     const missing = [];
