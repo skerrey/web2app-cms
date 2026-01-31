@@ -6,6 +6,7 @@ const rootDir = path.join(__dirname, "..")
 const adminDir = path.join(rootDir, "admin")
 const publicDir = path.join(rootDir, "public")
 const adminDistDir = path.join(adminDir, "dist")
+const contentDir = path.join(rootDir, "content")
 
 const copyRecursive = (src, dest) => {
   if (!fs.existsSync(src)) return
@@ -28,8 +29,14 @@ execSync("npm install", { cwd: adminDir, stdio: "inherit" })
 console.log("Building admin...")
 execSync("npm run build", { cwd: adminDir, stdio: "inherit" })
 
-console.log("Copying build output to public/...")
-fs.mkdirSync(publicDir, { recursive: true })
-copyRecursive(adminDistDir, publicDir)
+console.log("Copying admin build to public/admin/...")
+const publicAdminDir = path.join(publicDir, "admin")
+fs.mkdirSync(publicAdminDir, { recursive: true })
+copyRecursive(adminDistDir, publicAdminDir)
+
+console.log("Copying content to public/content/...")
+const publicContentDir = path.join(publicDir, "content")
+fs.mkdirSync(publicContentDir, { recursive: true })
+copyRecursive(contentDir, publicContentDir)
 
 console.log("Build complete!")

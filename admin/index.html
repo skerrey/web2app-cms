@@ -4,32 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Web2App CMS Admin</title>
-    <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <main class="container">
-      <header>
-        <h1>Web2App CMS Admin</h1>
-        <p>Edit page titles and text blocks, then publish JSON.</p>
-      </header>
-
-      <section class="actions">
-        <button id="reloadButton" type="button">Reload content.json</button>
-        <button id="publishButton" type="button">Publish</button>
-        <span id="status" class="status" aria-live="polite"></span>
-      </section>
-
-      <section>
-        <h2>Pages</h2>
-        <div id="pages"></div>
-      </section>
-
-      <section>
-        <h2>Published JSON</h2>
-        <textarea id="output" rows="16" spellcheck="false" readonly></textarea>
-      </section>
-    </main>
-
-    <script type="module" src="./app.js"></script>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

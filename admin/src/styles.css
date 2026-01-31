@@ -1,0 +1,97 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  color: #222;
+  background: #f7f7f7;
+}
+
+.container {
+  max-width: 100%;
+  margin: 0;
+  padding: 24px;
+}
+
+header h1 {
+  margin: 0 0 8px 0;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0 24px 0;
+}
+
+button {
+  padding: 8px 12px;
+  border: 1px solid #999;
+  background: #fff;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.status {
+  font-size: 0.9rem;
+  color: #444;
+}
+
+.layout-placeholder {
+  display: grid;
+  grid-template-columns: 200px 1fr 320px;
+  gap: 16px;
+  min-height: 400px;
+  margin-top: 16px;
+}
+
+.layout-sidebar,
+.layout-canvas,
+.layout-right {
+  background: #fff;
+  border: 1px solid #ddd;
+  padding: 16px;
+  border-radius: 4px;
+}
+
+.page {
+  background: #fff;
+  border: 1px solid #ddd;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.page-header input {
+  flex: 1;
+  padding: 6px 8px;
+}
+
+.block {
+  margin: 8px 0;
+}
+
+.block textarea {
+  width: 100%;
+  padding: 8px;
+  min-height: 60px;
+}
+
+textarea#output {
+  width: 100%;
+  padding: 12px;
+  font-family: "Courier New", monospace;
+}
