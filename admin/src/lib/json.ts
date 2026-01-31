@@ -9,6 +9,8 @@ import type {
   TextBlockData,
   HeroBlockData,
   ButtonBlockData,
+  GridBlockData,
+  GridCell,
   ContentPayload
 } from "../types"
 
@@ -17,6 +19,10 @@ const CONTENT_PATH = "/content/content.json"
 
 const generateBlockId = (): string => {
   return "block_" + Math.random().toString(36).slice(2, 11)
+}
+
+const generateCellId = (): string => {
+  return "cell_" + Math.random().toString(36).slice(2, 11)
 }
 
 const defaultDataForType = (
@@ -35,20 +41,49 @@ const defaultDataForType = (
 }
 
 export const createBlock = (type: "text" | "hero" | "button"): Block => {
+  const data = defaultDataForType(type)
+  const styles: Block["styles"] = type === "button" ? { width: "fit-content" } : {}
   return {
     id: generateBlockId(),
     type,
-    data: defaultDataForType(type),
+    data,
+    styles
+  }
+}
+
+export const createGridBlock = (columns: number): Block => {
+  const cells: GridCell[] = Array.from({ length: columns }, () => ({
+    id: generateCellId(),
+    blocks: []
+  }))
+  const data: GridBlockData = { columns, cells }
+  return {
+    id: generateBlockId(),
+    type: "grid",
+    data,
     styles: {}
   }
 }
 
 const normalizeBlock = (raw: RawBlock, _index: number): Block => {
   const type =
-    raw.type === "hero" || raw.type === "button" ? raw.type : "text"
+    raw.type === "hero" || raw.type === "button" || raw.type === "grid"
+      ? raw.type
+      : "text"
   const id = raw.id ?? generateBlockId()
   let data: Block["data"]
-  if (raw.data) {
+  if (type === "grid") {
+    const gridRaw = raw.data as { columns?: number; cells?: { id?: string; blocks?: RawBlock[] }[] } | undefined
+    const columns = Math.min(12, Math.max(1, Number(gridRaw?.columns) || 2))
+    const rawCells = Array.isArray(gridRaw?.cells) ? gridRaw.cells : []
+    const cells: GridCell[] = Array.from({ length: columns }, (_, i) => {
+      const rc = rawCells[i]
+      const cellId = rc?.id ?? generateCellId()
+      const blocks = (Array.isArray(rc?.blocks) ? rc.blocks : []).map((b, j) => normalizeBlock(b, j))
+      return { id: cellId, blocks }
+    })
+    data = { columns, cells }
+  } else if (raw.data) {
     data = raw.data as Block["data"]
   } else if (type === "text" && raw.text !== undefined) {
     data = { text: String(raw.text) }
@@ -120,34 +155,69 @@ export const validateManifest = (manifest: Manifest | null): string | null => {
   return null
 }
 
+const validateBlock = (block: Block): boolean => {
+  if (!block.id || !block.type || !block.data) return true
+  if (block.type === "text" && typeof (block.data as { text?: string }).text !== "string") return true
+  if (block.type === "grid") {
+    const d = block.data as GridBlockData
+    if (!Number.isInteger(d.columns) || !Array.isArray(d.cells)) return true
+    return d.cells.some((cell) => !cell.id || !Array.isArray(cell.blocks) || cell.blocks.some(validateBlock))
+  }
+  return false
+}
+
 export const validateContent = (pages: Page[]): string | null => {
   if (!Array.isArray(pages) || pages.length === 0) return "Missing pages in content.json"
   const invalid = pages.some((page) => {
     if (!page.id || !page.title || !Array.isArray(page.blocks)) return true
-    return page.blocks.some((block) => {
-      if (!block.id || !block.type || !block.data) return true
-      if (block.type === "text" && typeof (block.data as { text?: string }).text !== "string") return true
-      return false
-    })
+    return page.blocks.some(validateBlock)
   })
   if (invalid) return "Invalid page or block data in content.json"
   return null
 }
 
+type SerializedBlock = {
+  id: string
+  type: string
+  data: unknown
+  styles: BlockStyles
+  text?: string
+}
+
+const serializeBlock = (b: Block): SerializedBlock => {
+  const base: SerializedBlock = {
+    id: b.id,
+    type: b.type,
+    data:
+      b.type === "grid"
+        ? {
+            columns: (b.data as GridBlockData).columns,
+            cells: (b.data as GridBlockData).cells.map((cell) => ({
+              id: cell.id,
+              blocks: cell.blocks.map(serializeBlock)
+            }))
+          }
+        : b.data,
+    styles: b.styles ?? {}
+  }
+  // Emit top-level `text` for text blocks so Android and legacy consumers can read it
+  if (b.type === "text") {
+    const text = (b.data as TextBlockData).text
+    base.text = typeof text === "string" ? text : ""
+  }
+  return base
+}
+
 export const buildContentForPublish = (pages: Page[]): ContentPayload => {
-  return {
+  const payload = {
     pages: pages.map((p) => ({
       id: p.id,
       title: p.title,
       route: p.route ?? (p.id ? `/${p.id}` : "/"),
-      blocks: p.blocks.map((b) => ({
-        id: b.id,
-        type: b.type,
-        data: b.data,
-        styles: b.styles ?? {}
-      }))
+      blocks: p.blocks.map(serializeBlock)
     }))
   }
+  return payload as unknown as ContentPayload
 }
 
 export const buildManifestForPublish = (

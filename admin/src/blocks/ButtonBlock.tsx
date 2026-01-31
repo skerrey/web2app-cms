@@ -6,9 +6,9 @@ export interface ButtonBlockProps {
 }
 
 const ButtonBlock = ({ data, styles = {} }: ButtonBlockProps) => {
-  const { label, url } = data
+  const { label } = data
   const style: React.CSSProperties = {
-    width: styles.width,
+    width: styles.width ?? "fit-content",
     padding: styles.padding,
     color: styles.color,
     textAlign: styles.textAlign,
@@ -16,11 +16,8 @@ const ButtonBlock = ({ data, styles = {} }: ButtonBlockProps) => {
     backgroundColor: styles.backgroundColor
   }
   return (
-    <div className="block-render block-render-button" style={style}>
-      <span className="block-render-button-label">{label || "(Button)"}</span>
-      {url != null && url !== "" && (
-        <span className="block-render-button-url"> → {url}</span>
-      )}
+    <div className="break-words inline-block" style={style}>
+      <span className="font-medium">{label || "(Button)"}</span>
     </div>
   )
 }

@@ -1,0 +1,85 @@
+import type { Block, EditorMode, Page } from "../../types"
+import EditInspector from "./EditInspector"
+import LayoutInspector from "./LayoutInspector"
+
+export interface InspectorProps {
+  block: Block | null
+  mode: EditorMode
+  onChangeMode?: (mode: EditorMode) => void
+  onUpdateBlock: (block: Block) => void
+  pages?: Page[]
+  disabled?: boolean
+  onAddLayoutBlock?: (columns: number) => void
+}
+
+const Inspector = ({
+  block,
+  mode,
+  onChangeMode,
+  onUpdateBlock,
+  pages = [],
+  disabled = false,
+  onAddLayoutBlock
+}: InspectorProps) => {
+  return (
+    <>
+      <div className="flex items-center justify-between gap-3 border-b border-gray-200 pb-2 mb-2">
+        <h3 className="text-lg font-bold">
+          {mode.charAt(0).toUpperCase() + mode.slice(1)}
+        </h3>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium">Mode:</span>
+          <button
+            type="button"
+            className={`px-3 py-1.5 text-sm rounded border ${
+              mode === "edit"
+                ? "border-primary bg-primary-light"
+                : "border-gray-400 bg-white"
+            }`}
+            onClick={() => onChangeMode?.("edit")}
+            aria-pressed={mode === "edit"}
+            disabled={disabled}
+          >
+            Edit
+          </button>
+          <button
+            type="button"
+            className={`px-3 py-1.5 text-sm rounded border ${
+              mode === "layout"
+                ? "border-primary bg-primary-light"
+                : "border-gray-400 bg-white"
+            }`}
+            onClick={() => onChangeMode?.("layout")}
+            aria-pressed={mode === "layout"}
+            disabled={disabled}
+          >
+            Layout
+          </button>
+        </div>
+      </div>
+      {mode === "edit" ? (
+        !block ? (
+          <div className="flex flex-col gap-4">
+            <p className="text-sm text-gray-500">Select a block to edit.</p>
+          </div>
+        ) : (
+          <EditInspector
+            block={block}
+            onUpdateBlock={onUpdateBlock}
+            pages={pages}
+            disabled={disabled}
+          /> 
+        )
+      ) : mode === "layout" ? (
+        <LayoutInspector
+          block={block}
+          onUpdateBlock={onUpdateBlock}
+          disabled={disabled}
+          onAddLayoutBlock={onAddLayoutBlock}
+        />
+      ) : null}
+    </>
+  )
+}
+
+export default Inspector

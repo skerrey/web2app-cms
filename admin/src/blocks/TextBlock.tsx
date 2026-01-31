@@ -13,10 +13,14 @@ const TextBlock = ({ data, styles = {} }: TextBlockProps) => {
     color: styles.color,
     textAlign: styles.textAlign,
     fontSize: styles.fontSize,
-    backgroundColor: styles.backgroundColor
+    backgroundColor: styles.backgroundColor,
+    minHeight: "4.5rem"
   }
   return (
-    <div className="block-render block-render-text" style={style}>
+    <div
+      className="text-left break-words whitespace-pre-wrap"
+      style={style}
+    >
       {text || "(Empty text)"}
     </div>
   )

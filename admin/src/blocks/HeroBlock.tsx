@@ -16,10 +16,10 @@ const HeroBlock = ({ data, styles = {} }: HeroBlockProps) => {
     backgroundColor: styles.backgroundColor
   }
   return (
-    <div className="block-render block-render-hero" style={style}>
-      <div className="block-render-hero-title">{title || "(No title)"}</div>
+    <div className="break-words" style={style}>
+      <div className="font-semibold text-lg">{title || "(No title)"}</div>
       {subtitle != null && subtitle !== "" && (
-        <div className="block-render-hero-subtitle">{subtitle}</div>
+        <div className="text-sm text-gray-600 mt-1">{subtitle}</div>
       )}
     </div>
   )

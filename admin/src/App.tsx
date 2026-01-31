@@ -1,5 +1,18 @@
 import { useState, useEffect } from "react"
 import {
+  DndContext,
+  closestCenter,
+  DragOverlay,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragStartEvent,
+  type DragCancelEvent,
+  type DragEndEvent
+} from "@dnd-kit/core"
+import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable"
+import {
   loadManifest,
   loadContent,
   normalizeContent,
@@ -7,14 +20,17 @@ import {
   validateManifest,
   validateContent,
   buildContentForPublish,
-  buildManifestForPublish
+  buildManifestForPublish,
+  createGridBlock,
+  createBlock
 } from "./lib/json"
-import type { Manifest, Page, Block } from "./types"
+import type { Manifest, Page, Block, GridBlockData } from "./types"
 import PageList from "./components/PageList"
 import BlockLibrary from "./components/BlockLibrary"
 import BlockCanvas from "./components/BlockCanvas"
-import type { EditorMode } from "./components/BlockCanvas"
-import Inspector from "./components/Inspector"
+import CanvasDropZone, { getCanvasDropId } from "./components/CanvasDropZone"
+import type { EditorMode } from "./types"
+import Inspector from "./components/Inspector/index"
 import PreviewPhone from "./components/PreviewPhone"
 
 type LoadStatus = "idle" | "loading" | "loaded" | "error"
@@ -32,11 +48,62 @@ const reorderPagesByManifest = (pages: Page[], pagesOrder: string[]): Page[] => 
   return ordered
 }
 
+/** Find a block by id in top-level blocks or inside grid cells */
+const findBlockInBlocks = (blocks: Block[], blockId: string | null): Block | null => {
+  if (blockId == null) return null
+  const top = blocks.find((b) => b.id === blockId)
+  if (top) return top
+  for (const b of blocks) {
+    if (b.type === "grid") {
+      const data = b.data as GridBlockData
+      for (const cell of data.cells ?? []) {
+        const found = cell.blocks.find((nb) => nb.id === blockId)
+        if (found) return found
+      }
+    }
+  }
+  return null
+}
+
+const removeBlockFromBlocks = (blocks: Block[], blockId: string): { blocks: Block[]; removed: boolean } => {
+  let removed = false
+  const nextTop = blocks
+    .filter((b) => {
+      const keep = b.id !== blockId
+      if (!keep) removed = true
+      return keep
+    })
+    .map((b) => {
+      if (b.type !== "grid") return b
+      const data = b.data as GridBlockData
+      const nextCells = (data.cells ?? []).map((cell) => {
+        const nextNested = cell.blocks.filter((nb) => {
+          const keep = nb.id !== blockId
+          if (!keep) removed = true
+          return keep
+        })
+        return nextNested === cell.blocks ? cell : { ...cell, blocks: nextNested }
+      })
+      return { ...b, data: { ...data, cells: nextCells } }
+    })
+  return { blocks: nextTop, removed }
+}
+
 const App = () => {
   const [manifest, setManifest] = useState<Manifest | null>(null)
   const [pages, setPages] = useState<Page[]>([])
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null)
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null)
+  const [activeDrag, setActiveDrag] = useState<
+    | {
+        id: string
+        type?: string
+        blockType?: "text" | "hero" | "button"
+        columns?: number
+        pageId?: string
+      }
+    | null
+  >(null)
   const [isDirty, setIsDirty] = useState(false)
   const [isPublishing, setIsPublishing] = useState(false)
   const [loadStatus, setLoadStatus] = useState<LoadStatus>("idle")
@@ -164,6 +231,11 @@ const App = () => {
     setIsDirty(true)
   }
 
+  const handleUpdatePageTitle = (id: string, title: string) => {
+    setPages((prev) => prev.map((p) => (p.id === id ? { ...p, title } : p)))
+    setIsDirty(true)
+  }
+
   const handleDeletePage = (id: string) => {
     const nextPages = pages.filter((p) => p.id !== id)
     setPages(nextPages)
@@ -174,16 +246,10 @@ const App = () => {
     setIsDirty(true)
   }
 
-  const handleMovePage = (index: number, direction: -1 | 1) => {
-    const newIndex = index + direction
-    if (newIndex < 0 || newIndex >= pages.length) return
-    const next = [...pages]
-    const [removed] = next.splice(index, 1)
-    if (!removed) return
-    next.splice(newIndex, 0, removed)
-    setPages(next)
+  const handleReorderPages = (nextPages: Page[]) => {
+    setPages(nextPages)
     setManifest((m) =>
-      m ? { ...m, pagesOrder: next.map((p) => p.id) } : null
+      m ? { ...m, pagesOrder: nextPages.map((p) => p.id) } : null
     )
     setIsDirty(true)
   }
@@ -204,6 +270,12 @@ const App = () => {
     setIsDirty(true)
   }
 
+  const handleAddLayoutBlock = (columns: number) => {
+    if (!selectedPageId) return
+    const block = createGridBlock(columns)
+    handleAddBlock(block)
+  }
+
   const handleReorderBlocks = (newBlocks: Block[]) => {
     if (!selectedPageId) return
     setPages((prev) =>
@@ -214,8 +286,52 @@ const App = () => {
     setIsDirty(true)
   }
 
-  const selectedBlock =
-    currentPage?.blocks.find((b) => b.id === selectedBlockId) ?? null
+  const handleDeleteBlock = (blockId: string) => {
+    if (!selectedPageId) return
+    setPages((prev) =>
+      prev.map((p) => {
+        if (p.id !== selectedPageId) return p
+        const res = removeBlockFromBlocks(p.blocks, blockId)
+        return res.removed ? { ...p, blocks: res.blocks } : p
+      })
+    )
+    setSelectedBlockId((sid) => (sid === blockId ? null : sid))
+    setIsDirty(true)
+  }
+
+  const handleAddBlockToCell = (gridBlockId: string, cellId: string, block: Block) => {
+    if (!selectedPageId) return
+    setPages((prev) =>
+      prev.map((p) => {
+        if (p.id !== selectedPageId) return p
+        return {
+          ...p,
+          blocks: p.blocks.map((b) => {
+            if (b.id !== gridBlockId || b.type !== "grid") return b
+            const data = b.data as { columns: number; cells: { id: string; blocks: Block[] }[] }
+            return {
+              ...b,
+              data: {
+                ...data,
+                cells: data.cells.map((cell) =>
+                  cell.id === cellId
+                    ? { ...cell, blocks: [...cell.blocks, block] }
+                    : cell
+                )
+              }
+            }
+          })
+        }
+      })
+    )
+    setSelectedBlockId(block.id)
+    setIsDirty(true)
+  }
+
+  const selectedBlock = findBlockInBlocks(
+    currentPage?.blocks ?? [],
+    selectedBlockId
+  )
 
   const handleUpdateBlock = (updatedBlock: Block) => {
     if (!selectedPageId) return
@@ -224,24 +340,137 @@ const App = () => {
         if (p.id !== selectedPageId) return p
         return {
           ...p,
-          blocks: p.blocks.map((b) =>
-            b.id === updatedBlock.id ? updatedBlock : b
-          )
+          blocks: p.blocks.map((b) => {
+            if (b.id === updatedBlock.id) return updatedBlock
+            if (b.type === "grid") {
+              const data = b.data as GridBlockData
+              const cells = (data.cells ?? []).map((cell) => ({
+                ...cell,
+                blocks: cell.blocks.map((nb) =>
+                  nb.id === updatedBlock.id ? updatedBlock : nb
+                )
+              }))
+              return { ...b, data: { ...data, cells } }
+            }
+            return b
+          })
         }
       })
     )
     setIsDirty(true)
   }
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  )
+
+  const handleDragStart = (event: DragStartEvent) => {
+    const data = event.active.data.current as
+      | { type?: string; blockType?: "text" | "hero" | "button"; columns?: number; pageId?: string }
+      | undefined
+    setActiveDrag({ id: String(event.active.id), ...data })
+  }
+
+  const handleDragCancel = (_event: DragCancelEvent) => {
+    setActiveDrag(null)
+  }
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    setActiveDrag(null)
+    if (over == null) return
+
+    const activeData = active.data.current as
+      | { type?: string; columns?: number; blockType?: "text" | "hero" | "button"; pageId?: string }
+      | undefined
+    const overId = String(over.id)
+
+    if (activeData?.type === "page" && typeof activeData.pageId === "string" && overId.startsWith("page-")) {
+      const overPageId = overId.slice(5)
+      const oldIndex = pages.findIndex((p) => p.id === activeData.pageId)
+      const newIndex = pages.findIndex((p) => p.id === overPageId)
+      if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
+        handleReorderPages(arrayMove(pages, oldIndex, newIndex))
+      }
+      return
+    }
+
+    if (activeData?.type === "layout-preset" && overId === getCanvasDropId()) {
+      if (typeof activeData.columns === "number") {
+        handleAddLayoutBlock(activeData.columns)
+      }
+      return
+    }
+
+    if (activeData?.type === "content-block" && overId.startsWith("cell-")) {
+      const parts = overId.slice(5).split("__")
+      const gridBlockId = parts[0]
+      const cellId = parts[1]
+      if (gridBlockId != null && cellId != null) {
+        const blockType = activeData.blockType
+        if (blockType === "text" || blockType === "hero" || blockType === "button") {
+          const block = createBlock(blockType)
+          handleAddBlockToCell(gridBlockId, cellId, block)
+        }
+      }
+      return
+    }
+
+    const oldIndex = currentBlocks.findIndex((b) => b.id === active.id)
+    const newIndex = currentBlocks.findIndex((b) => b.id === over.id)
+    if (oldIndex !== -1 && newIndex !== -1 && active.id !== over.id) {
+      handleReorderBlocks(arrayMove(currentBlocks, oldIndex, newIndex))
+    }
+  }
+
+  const dragOverlay = () => {
+    if (!activeDrag) return null
+    if (activeDrag.type === "content-block" && activeDrag.blockType) {
+      const label =
+        activeDrag.blockType === "text"
+          ? "Text"
+          : activeDrag.blockType === "hero"
+            ? "Hero"
+            : "Button"
+      return (
+        <div className="px-3 py-2 text-sm rounded border border-gray-400 bg-white shadow-lg opacity-95">
+          {label}
+        </div>
+      )
+    }
+    if (activeDrag.type === "layout-preset" && typeof activeDrag.columns === "number") {
+      return (
+        <div className="px-3 py-2 text-sm rounded border border-gray-400 bg-white shadow-lg opacity-95">
+          {activeDrag.columns} column layout
+        </div>
+      )
+    }
+    if (activeDrag.type === "page" && typeof activeDrag.pageId === "string") {
+      const title = pages.find((p) => p.id === activeDrag.pageId)?.title ?? "Page"
+      return (
+        <div className="px-2 py-1.5 text-sm rounded border border-gray-300 bg-white shadow-lg opacity-95 max-w-[220px] truncate">
+          {title}
+        </div>
+      )
+    }
+    return (
+      <div className="px-3 py-2 text-sm rounded border border-gray-300 bg-white shadow-lg opacity-95">
+        Dragging…
+      </div>
+    )
+  }
+
   return (
-    <main className="container">
+    <main className="max-w-full mx-0 p-6">
       <header>
-        <h1>Web2App CMS Admin</h1>
-        <p>Block-based visual editor. (Sidebar, canvas, inspector + preview coming next.)</p>
+        <h1 className="m-0 mb-2 text-2xl font-semibold">Web2App CMS Admin</h1>
+        <p className="m-0 text-gray-600">Block-based visual editor. (Sidebar, canvas, inspector + preview coming next.)</p>
       </header>
-      <section className="actions">
+      <section className="flex items-center gap-3 my-4">
         <button
           type="button"
+          className="px-3 py-2 border border-gray-400 bg-white cursor-pointer rounded disabled:opacity-60 disabled:cursor-not-allowed"
           onClick={() => setReloadKey((k) => k + 1)}
           disabled={loadStatus === "loading" || isPublishing}
           aria-label="Reload content"
@@ -251,80 +480,86 @@ const App = () => {
         <button
           type="button"
           id="publishButton"
+          className="px-3 py-2 border border-gray-400 bg-white cursor-pointer rounded disabled:opacity-60 disabled:cursor-not-allowed"
           disabled={!isDirty || isPublishing}
           onClick={handlePublish}
           aria-label="Publish changes"
         >
           {isPublishing ? "Publishing…" : "Publish"}
         </button>
-        <span id="status" className="status" aria-live="polite">
+        <span id="status" className="text-sm text-gray-600" aria-live="polite">
           {statusMessage}
         </span>
       </section>
-      <section
-        className="layout-placeholder"
-        data-manifest-version={manifest?.schemaVersion}
-        data-selected-page={selectedPageId ?? undefined}
-        data-selected-block={selectedBlockId ?? undefined}
-        data-dirty={isDirty}
-        data-publishing={isPublishing}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        onDragCancel={handleDragCancel}
       >
-        <div className="layout-sidebar">
-          <PageList
-            pages={pages}
-            selectedPageId={selectedPageId}
-            onSelectPage={setSelectedPageId}
-            onAddPage={handleAddPage}
-            onDeletePage={handleDeletePage}
-            onMovePage={handleMovePage}
-            disabled={loadStatus !== "loaded"}
-          />
-        </div>
-        <div className="layout-canvas">
-          <div className="toolbar-mode">
-            <span className="toolbar-mode-label">Mode:</span>
-            <button
-              type="button"
-              className={editorMode === "edit" ? "is-active" : ""}
-              onClick={() => setEditorMode("edit")}
-              aria-pressed={editorMode === "edit"}
-            >
-              Edit
-            </button>
-            <button
-              type="button"
-              className={editorMode === "layout" ? "is-active" : ""}
-              onClick={() => setEditorMode("layout")}
-              aria-pressed={editorMode === "layout"}
-            >
-              Layout
-            </button>
+        <DragOverlay dropAnimation={null}>
+          {dragOverlay()}
+        </DragOverlay>
+        <section
+          className="grid gap-4 mt-4 overflow-hidden min-h-[400px] h-[calc(100vh-180px)]"
+          style={{ gridTemplateColumns: "240px 1fr 280px 400px" }}
+          data-manifest-version={manifest?.schemaVersion}
+          data-selected-page={selectedPageId ?? undefined}
+          data-selected-block={selectedBlockId ?? undefined}
+          data-dirty={isDirty}
+          data-publishing={isPublishing}
+        >
+          <div className="bg-white border border-gray-200 p-4 rounded min-h-0 overflow-y-auto">
+            <PageList
+              pages={pages}
+              selectedPageId={selectedPageId}
+              onSelectPage={setSelectedPageId}
+              onAddPage={handleAddPage}
+              onDeletePage={handleDeletePage}
+              onUpdatePageTitle={handleUpdatePageTitle}
+              disabled={loadStatus !== "loaded"}
+            />
           </div>
-          <BlockLibrary
-            onAddBlock={handleAddBlock}
-            disabled={loadStatus !== "loaded" || !selectedPageId}
-          />
-          <BlockCanvas
-            blocks={currentBlocks}
-            selectedBlockId={selectedBlockId}
+          <div className="bg-white border border-gray-200 p-4 rounded min-h-0 overflow-y-auto">
+            <CanvasDropZone isLayoutMode={editorMode === "layout"}>
+              <BlockLibrary
+                onAddBlock={handleAddBlock}
+                disabled={loadStatus !== "loaded" || !selectedPageId}
+                mode={editorMode}
+              />
+              <BlockCanvas
+                blocks={currentBlocks}
+                selectedBlockId={selectedBlockId}
+                mode={editorMode}
+                onSelectBlock={setSelectedBlockId}
+                onReorderBlocks={handleReorderBlocks}
+                onUpdateBlock={handleUpdateBlock}
+                onDeleteBlock={handleDeleteBlock}
+                disabled={loadStatus !== "loaded" || !selectedPageId}
+              />
+            </CanvasDropZone>
+          </div>
+        <div className="bg-white border border-gray-200 p-4 rounded min-h-0 overflow-y-auto min-w-0">
+          <Inspector
+            key={selectedBlockId ?? "no-block"}
+            block={selectedBlock}
             mode={editorMode}
-            onSelectBlock={setSelectedBlockId}
-            onReorderBlocks={handleReorderBlocks}
+            onChangeMode={setEditorMode}
+            onUpdateBlock={handleUpdateBlock}
+            pages={pages}
             disabled={loadStatus !== "loaded" || !selectedPageId}
+            onAddLayoutBlock={handleAddLayoutBlock}
           />
         </div>
-        <div className="layout-right">
-          <Inspector
-            block={selectedBlock}
-            onUpdateBlock={handleUpdateBlock}
-            disabled={loadStatus !== "loaded" || !selectedPageId}
-          />
+        <div className="bg-white border border-gray-200 p-4 rounded min-h-0 overflow-y-auto min-w-0 flex flex-col items-start">
           <PreviewPhone
             pageTitle={currentPage?.title}
             blocks={currentBlocks}
           />
         </div>
-      </section>
+        </section>
+      </DndContext>
     </main>
   )
 }

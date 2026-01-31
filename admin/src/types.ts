@@ -1,3 +1,5 @@
+export type EditorMode = "edit" | "layout"
+
 /**
  * Manifest (manifest.json)
  */
@@ -37,7 +39,18 @@ export interface ButtonBlockData {
   url?: string
 }
 
-export type BlockData = TextBlockData | HeroBlockData | ButtonBlockData
+/** Grid/layout block: N columns, each cell holds child blocks */
+export interface GridCell {
+  id: string
+  blocks: Block[]
+}
+
+export interface GridBlockData {
+  columns: number
+  cells: GridCell[]
+}
+
+export type BlockData = TextBlockData | HeroBlockData | ButtonBlockData | GridBlockData
 
 /**
  * Common block styles (inspector + publish)
@@ -57,7 +70,7 @@ export interface BlockStyles {
  */
 export interface Block {
   id: string
-  type: "text" | "hero" | "button"
+  type: "text" | "hero" | "button" | "grid"
   data: BlockData
   styles?: BlockStyles
 }
@@ -86,7 +99,7 @@ export interface RawBlock {
   id?: string
   type: string
   text?: string
-  data?: BlockData
+  data?: unknown
   styles?: BlockStyles
 }
 
