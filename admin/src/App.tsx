@@ -12,6 +12,7 @@ import PageList from "./components/PageList"
 import BlockLibrary from "./components/BlockLibrary"
 import BlockCanvas from "./components/BlockCanvas"
 import type { EditorMode } from "./components/BlockCanvas"
+import Inspector from "./components/Inspector"
 
 type LoadStatus = "idle" | "loading" | "loaded" | "error"
 
@@ -162,6 +163,25 @@ const App = () => {
     setIsDirty(true)
   }
 
+  const selectedBlock =
+    currentPage?.blocks.find((b) => b.id === selectedBlockId) ?? null
+
+  const handleUpdateBlock = (updatedBlock: Block) => {
+    if (!selectedPageId) return
+    setPages((prev) =>
+      prev.map((p) => {
+        if (p.id !== selectedPageId) return p
+        return {
+          ...p,
+          blocks: p.blocks.map((b) =>
+            b.id === updatedBlock.id ? updatedBlock : b
+          )
+        }
+      })
+    )
+    setIsDirty(true)
+  }
+
   return (
     <main className="container">
       <header>
@@ -233,7 +253,13 @@ const App = () => {
             disabled={loadStatus !== "loaded" || !selectedPageId}
           />
         </div>
-        <div className="layout-right">Inspector + Preview</div>
+        <div className="layout-right">
+          <Inspector
+            block={selectedBlock}
+            onUpdateBlock={handleUpdateBlock}
+            disabled={loadStatus !== "loaded" || !selectedPageId}
+          />
+        </div>
       </section>
     </main>
   )
