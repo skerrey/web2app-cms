@@ -8,6 +8,7 @@ import {
   validateContent
 } from "./lib/json"
 import type { Manifest, Page } from "./types"
+import PageList from "./components/PageList"
 
 type LoadStatus = "idle" | "loading" | "loaded" | "error"
 
@@ -98,6 +99,39 @@ const App = () => {
           ? loadError ?? "Error"
           : ""
 
+  const handleAddPage = (page: Page) => {
+    setPages((prev) => [...prev, page])
+    setManifest((prev) =>
+      prev ? { ...prev, pagesOrder: [...prev.pagesOrder, page.id] } : null
+    )
+    setSelectedPageId(page.id)
+    setIsDirty(true)
+  }
+
+  const handleDeletePage = (id: string) => {
+    const nextPages = pages.filter((p) => p.id !== id)
+    setPages(nextPages)
+    setManifest((m) =>
+      m ? { ...m, pagesOrder: nextPages.map((p) => p.id) } : null
+    )
+    setSelectedPageId((sid) => (sid === id ? nextPages[0]?.id ?? null : sid))
+    setIsDirty(true)
+  }
+
+  const handleMovePage = (index: number, direction: -1 | 1) => {
+    const newIndex = index + direction
+    if (newIndex < 0 || newIndex >= pages.length) return
+    const next = [...pages]
+    const [removed] = next.splice(index, 1)
+    if (!removed) return
+    next.splice(newIndex, 0, removed)
+    setPages(next)
+    setManifest((m) =>
+      m ? { ...m, pagesOrder: next.map((p) => p.id) } : null
+    )
+    setIsDirty(true)
+  }
+
   return (
     <main className="container">
       <header>
@@ -105,6 +139,14 @@ const App = () => {
         <p>Block-based visual editor. (Sidebar, canvas, inspector + preview coming next.)</p>
       </header>
       <section className="actions">
+        <button
+          type="button"
+          id="publishButton"
+          disabled={!isDirty || isPublishing}
+          aria-label="Publish changes"
+        >
+          Publish
+        </button>
         <span id="status" className="status" aria-live="polite">
           {statusMessage}
         </span>
@@ -117,7 +159,17 @@ const App = () => {
         data-dirty={isDirty}
         data-publishing={isPublishing}
       >
-        <div className="layout-sidebar">Pages (sidebar)</div>
+        <div className="layout-sidebar">
+          <PageList
+            pages={pages}
+            selectedPageId={selectedPageId}
+            onSelectPage={setSelectedPageId}
+            onAddPage={handleAddPage}
+            onDeletePage={handleDeletePage}
+            onMovePage={handleMovePage}
+            disabled={loadStatus !== "loaded"}
+          />
+        </div>
         <div className="layout-canvas">Blocks (canvas)</div>
         <div className="layout-right">Inspector + Preview</div>
       </section>

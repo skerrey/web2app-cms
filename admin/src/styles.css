@@ -61,6 +61,81 @@ button:disabled {
   border-radius: 4px;
 }
 
+.page-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.page-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.page-list-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.page-list-add {
+  padding: 4px 8px;
+  font-size: 0.85rem;
+}
+
+.page-list-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.page-list-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.page-list-item-button {
+  text-align: left;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #ddd;
+  background: #fff;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.page-list-item-button:hover {
+  background: #f5f5f5;
+}
+
+.page-list-item-button.is-selected {
+  border-color: #0066cc;
+  background: #e6f2ff;
+}
+
+.page-list-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-left: 4px;
+}
+
+.page-list-move,
+.page-list-delete {
+  padding: 4px 8px;
+  font-size: 0.8rem;
+}
+
+.page-list-delete {
+  color: #c00;
+  border-color: #e88;
+}
+
 .page {
   background: #fff;
   border: 1px solid #ddd;
