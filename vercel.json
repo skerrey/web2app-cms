@@ -1,5 +1,5 @@
 {
-  "buildCommand": "mkdir -p public && cd admin && npm install && npm run build && cp -r dist/* ../public/",
+  "buildCommand": "npm run build",
   "outputDirectory": "public",
   "functions": {
     "api/*.js": {
