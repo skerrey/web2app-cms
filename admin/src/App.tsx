@@ -13,6 +13,7 @@ import BlockLibrary from "./components/BlockLibrary"
 import BlockCanvas from "./components/BlockCanvas"
 import type { EditorMode } from "./components/BlockCanvas"
 import Inspector from "./components/Inspector"
+import PreviewPhone from "./components/PreviewPhone"
 
 type LoadStatus = "idle" | "loading" | "loaded" | "error"
 
@@ -258,6 +259,10 @@ const App = () => {
             block={selectedBlock}
             onUpdateBlock={handleUpdateBlock}
             disabled={loadStatus !== "loaded" || !selectedPageId}
+          />
+          <PreviewPhone
+            pageTitle={currentPage?.title}
+            blocks={currentBlocks}
           />
         </div>
       </section>
