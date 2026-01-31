@@ -15,6 +15,7 @@ yarn-error.log*
 node_modules/
 dist/
 build/
+public/
 .next/
 .vercel/
 

@@ -1,20 +1,12 @@
 {
-  "builds": [
-    {
-      "src": "admin/package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "dist"
-      }
-    },
-    {
-      "src": "api/**/*.js",
-      "use": "@vercel/node"
+  "buildCommand": "mkdir -p public && cd admin && npm install && npm run build && cp -r dist/* ../public/",
+  "outputDirectory": "public",
+  "functions": {
+    "api/*.js": {
+      "runtime": "@vercel/node@3"
     }
-  ],
-  "routes": [
-    { "handle": "filesystem" },
-    { "src": "/api/(.*)", "dest": "/api/$1" }
-  ],
-  "devCommand": "cd admin && npm run dev -- --port $PORT"
+  },
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "/api/:path*" }
+  ]
 }
