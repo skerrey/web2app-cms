@@ -1,0 +1,28 @@
+{
+  "pages": [
+    {
+      "id": "home",
+      "title": "Home",
+      "blocks": [
+        {
+          "type": "text",
+          "text": "Welcome to the app."
+        },
+        {
+          "type": "text",
+          "text": "Check the latest updates in the News section."
+        }
+      ]
+    },
+    {
+      "id": "about",
+      "title": "About",
+      "blocks": [
+        {
+          "type": "text",
+          "text": "This app helps you stay informed."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "v1",
+  "contentVersion": "1.0.0",
+  "compatibleAppVersions": {
+    "min": "1.0.0",
+    "max": "2.0.0"
+  },
+  "pagesOrder": [
+    "home",
+    "about"
+  ],
+  "featureFlags": {
+    "showWelcomeBanner": true,
+    "enableHelpLink": false
+  }
+}

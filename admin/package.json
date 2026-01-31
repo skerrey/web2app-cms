@@ -5,7 +5,9 @@
   "main": "app.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
+    "predev": "node scripts/copy-content.js",
     "dev": "vite",
+    "prebuild": "node scripts/copy-content.js",
     "build": "vite build"
   },
   "keywords": [],
