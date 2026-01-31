@@ -39,8 +39,14 @@ const validatePayload = (payload) => {
 
   const hasInvalid = content.pages.some((page) => {
     if (!page || !page.id || !page.title || !Array.isArray(page.blocks)) return true;
-    const textBlocks = page.blocks.filter((block) => block && block.type === "text" && block.text);
-    return textBlocks.length === 0;
+    return page.blocks.some((block) => {
+      if (!block || !block.type) return true;
+      if (block.type === "text") {
+        const text = block.data?.text ?? block.text;
+        return text == null || typeof text !== "string";
+      }
+      return !block.data || typeof block.data !== "object";
+    });
   });
 
   if (hasInvalid) return "Invalid page data in content.pages";
@@ -65,7 +71,7 @@ const fetchWithTimeout = async (url, options = {}, timeoutMs = 10000) => {
   }
 };
 
-const createGitHubCommit = async ({ token, owner, repo, manifestJson, contentJson }) => {
+const createGitHubCommit = async ({ token, owner, repo, branch, manifestJson, contentJson, message }) => {
   const apiBase = "https://api.github.com";
   const headers = {
     Authorization: `Bearer ${token}`,
@@ -90,7 +96,7 @@ const createGitHubCommit = async ({ token, owner, repo, manifestJson, contentJso
   };
 
   const refData = await githubRequest(
-    `${apiBase}/repos/${owner}/${repo}/git/ref/heads/main`
+    `${apiBase}/repos/${owner}/${repo}/git/ref/heads/${branch}`
   );
   const baseCommitSha = refData.object.sha;
   const baseCommit = await githubRequest(
@@ -148,7 +154,7 @@ const createGitHubCommit = async ({ token, owner, repo, manifestJson, contentJso
     {
       method: "POST",
       body: JSON.stringify({
-        message: "Update CMS content",
+        message: message || "Update CMS content",
         tree: tree.sha,
         parents: [baseCommitSha]
       })
@@ -156,7 +162,7 @@ const createGitHubCommit = async ({ token, owner, repo, manifestJson, contentJso
   );
 
   await githubRequest(
-    `${apiBase}/repos/${owner}/${repo}/git/refs/heads/main`,
+    `${apiBase}/repos/${owner}/${repo}/git/refs/heads/${branch}`,
     {
       method: "PATCH",
       body: JSON.stringify({
@@ -171,7 +177,7 @@ const createGitHubCommit = async ({ token, owner, repo, manifestJson, contentJso
 
 const handler = async (req, res) => {
   if (req.method !== "POST") {
-    res.status(405).json({ error: "Method not allowed" });
+    res.status(405).json({ ok: false, error: "Method not allowed" });
     return;
   }
 
@@ -184,7 +190,7 @@ const handler = async (req, res) => {
     const deployedRepo = process.env.VERCEL_GIT_REPO_SLUG;
 
     if (!token || !owner || !repo) {
-      res.status(500).json({ error: "Missing GitHub environment variables" });
+      res.status(500).json({ ok: false, error: "Missing GitHub environment variables" });
       return;
     }
     if (
@@ -192,36 +198,42 @@ const handler = async (req, res) => {
       deployedRepo &&
       (owner !== deployedOwner || repo !== deployedRepo)
     ) {
-      res.status(403).json({ error: "Repository mismatch" });
+      res.status(403).json({ ok: false, error: "Repository mismatch" });
       return;
     }
 
     const payload = await readJsonBody(req);
     const validationError = validatePayload(payload);
     if (validationError) {
-      res.status(400).json({ error: validationError });
+      res.status(400).json({ ok: false, error: validationError });
       return;
     }
     console.log("Publish validation passed");
 
     const manifestJson = JSON.stringify(payload.manifest, null, 2);
     const contentJson = JSON.stringify(payload.content, null, 2);
+    const branch = process.env.GITHUB_BRANCH || "main";
+    const commitMessage = payload.message && typeof payload.message === "string"
+      ? payload.message
+      : "Update CMS content";
 
     const commitSha = await createGitHubCommit({
       token,
       owner,
       repo,
+      branch,
       manifestJson,
-      contentJson
+      contentJson,
+      message: commitMessage
     });
     if (commitSha) {
       console.log(`Publish commit created: ${commitSha}`);
     }
 
-    res.status(200).json({ ok: true });
+    res.status(200).json({ ok: true, commitSha: commitSha ?? undefined });
   } catch (error) {
     const message = error && error.message ? error.message : "Publish failed";
-    res.status(500).json({ error: message });
+    res.status(500).json({ ok: false, error: message });
   }
 };
 

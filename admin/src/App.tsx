@@ -5,7 +5,9 @@ import {
   normalizeContent,
   normalizeManifest,
   validateManifest,
-  validateContent
+  validateContent,
+  buildContentForPublish,
+  buildManifestForPublish
 } from "./lib/json"
 import type { Manifest, Page, Block } from "./types"
 import PageList from "./components/PageList"
@@ -39,6 +41,7 @@ const App = () => {
   const [isPublishing, setIsPublishing] = useState(false)
   const [loadStatus, setLoadStatus] = useState<LoadStatus>("idle")
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [publishStatus, setPublishStatus] = useState<string | null>(null)
   const [editorMode, setEditorMode] = useState<EditorMode>("edit")
 
   useEffect(() => {
@@ -80,6 +83,7 @@ const App = () => {
         setIsDirty(false)
         setLoadStatus("loaded")
         setLoadError(null)
+        setPublishStatus(null)
       } catch (err) {
         if (cancelled) return
         setLoadError(err instanceof Error ? err.message : "Failed to load")
@@ -97,13 +101,58 @@ const App = () => {
   }, [])
 
   const statusMessage =
-    loadStatus === "loading"
-      ? "Loading content..."
-      : loadStatus === "loaded"
-        ? `Loaded content.json and manifest.json (${pages.length} pages)`
-        : loadStatus === "error"
-          ? loadError ?? "Error"
-          : ""
+    publishStatus != null
+      ? publishStatus
+      : loadStatus === "loading"
+        ? "Loading content..."
+        : loadStatus === "loaded"
+          ? `Loaded content.json and manifest.json (${pages.length} pages)`
+          : loadStatus === "error"
+            ? loadError ?? "Error"
+            : ""
+
+  const SUCCESS_MESSAGE =
+    "Success, new changes are published, please allow ~5min for the changes to take affect in the app"
+
+  const handlePublish = async () => {
+    if (isPublishing || !isDirty || !manifest || pages.length === 0) return
+    const pagesOrder = pages.map((p) => p.id)
+    const manifestPayload = buildManifestForPublish(manifest, pagesOrder)
+    const contentPayload = buildContentForPublish(pages)
+    const manifestErr = validateManifest(manifestPayload)
+    if (manifestErr) {
+      setPublishStatus(manifestErr)
+      return
+    }
+    const contentErr = validateContent(pages)
+    if (contentErr) {
+      setPublishStatus(contentErr)
+      return
+    }
+    setIsPublishing(true)
+    setPublishStatus("Publishing to GitHub...")
+    try {
+      const response = await fetch("/api/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          manifest: manifestPayload,
+          content: contentPayload
+        })
+      })
+      const body = await response.json().catch(() => ({}))
+      if (response.ok && body.ok === true) {
+        setPublishStatus(SUCCESS_MESSAGE)
+        setIsDirty(false)
+      } else {
+        setPublishStatus(body.error ?? "Publish failed")
+      }
+    } catch (err) {
+      setPublishStatus(err instanceof Error ? err.message : "Publish failed")
+    } finally {
+      setIsPublishing(false)
+    }
+  }
 
   const handleAddPage = (page: Page) => {
     setPages((prev) => [...prev, page])
@@ -194,9 +243,10 @@ const App = () => {
           type="button"
           id="publishButton"
           disabled={!isDirty || isPublishing}
+          onClick={handlePublish}
           aria-label="Publish changes"
         >
-          Publish
+          {isPublishing ? "Publishing…" : "Publish"}
         </button>
         <span id="status" className="status" aria-live="polite">
           {statusMessage}
