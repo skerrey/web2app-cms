@@ -34,6 +34,15 @@ const defaultDataForType = (
   }
 }
 
+export const createBlock = (type: "text" | "hero" | "button"): Block => {
+  return {
+    id: generateBlockId(),
+    type,
+    data: defaultDataForType(type),
+    styles: {}
+  }
+}
+
 const normalizeBlock = (raw: RawBlock, _index: number): Block => {
   const type =
     raw.type === "hero" || raw.type === "button" ? raw.type : "text"

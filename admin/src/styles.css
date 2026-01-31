@@ -136,6 +136,149 @@ button:disabled {
   border-color: #e88;
 }
 
+.toolbar-mode {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.toolbar-mode-label {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.toolbar-mode button {
+  padding: 6px 12px;
+  font-size: 0.9rem;
+}
+
+.toolbar-mode button.is-active {
+  border-color: #0066cc;
+  background: #e6f2ff;
+}
+
+.block-library {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.block-library-title {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.block-library-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.block-library-btn {
+  padding: 6px 12px;
+  font-size: 0.85rem;
+}
+
+.block-canvas {
+  min-height: 200px;
+}
+
+.block-canvas-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.block-canvas-empty {
+  color: #666;
+  font-size: 0.9rem;
+  margin: 0;
+  padding: 16px;
+}
+
+.block-canvas-item {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.block-canvas-item.is-selected {
+  border-color: #0066cc;
+  box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.2);
+}
+
+.block-canvas-handle {
+  display: flex;
+  align-items: center;
+  padding: 8px;
+  background: #eee;
+  color: #666;
+  cursor: grab;
+  font-size: 0.9rem;
+  user-select: none;
+}
+
+.block-canvas-block {
+  flex: 1;
+  text-align: left;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  min-height: 44px;
+}
+
+.block-canvas-block:hover {
+  background: #f9f9f9;
+}
+
+.block-canvas-unknown {
+  color: #999;
+  font-style: italic;
+  padding: 8px;
+}
+
+.block-render {
+  padding: 8px 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.block-render-text {
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.block-render-hero-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.block-render-hero-subtitle {
+  font-size: 0.9rem;
+  color: #555;
+}
+
+.block-render-button {
+  display: inline-block;
+  padding: 8px 14px;
+  border: 1px solid #0066cc;
+  border-radius: 4px;
+  color: #0066cc;
+  font-size: 0.9rem;
+}
+
+.block-render-button-url {
+  font-size: 0.8rem;
+  color: #666;
+  margin-left: 4px;
+}
+
 .page {
   background: #fff;
   border: 1px solid #ddd;

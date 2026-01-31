@@ -7,8 +7,11 @@ import {
   validateManifest,
   validateContent
 } from "./lib/json"
-import type { Manifest, Page } from "./types"
+import type { Manifest, Page, Block } from "./types"
 import PageList from "./components/PageList"
+import BlockLibrary from "./components/BlockLibrary"
+import BlockCanvas from "./components/BlockCanvas"
+import type { EditorMode } from "./components/BlockCanvas"
 
 type LoadStatus = "idle" | "loading" | "loaded" | "error"
 
@@ -34,6 +37,7 @@ const App = () => {
   const [isPublishing, setIsPublishing] = useState(false)
   const [loadStatus, setLoadStatus] = useState<LoadStatus>("idle")
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [editorMode, setEditorMode] = useState<EditorMode>("edit")
 
   useEffect(() => {
     return () => {
@@ -132,6 +136,22 @@ const App = () => {
     setIsDirty(true)
   }
 
+  const currentPage = pages.find((p) => p.id === selectedPageId) ?? null
+  const currentBlocks = currentPage?.blocks ?? []
+
+  const handleAddBlock = (block: Block) => {
+    if (!selectedPageId) return
+    setPages((prev) =>
+      prev.map((p) =>
+        p.id === selectedPageId
+          ? { ...p, blocks: [...p.blocks, block] }
+          : p
+      )
+    )
+    setSelectedBlockId(block.id)
+    setIsDirty(true)
+  }
+
   return (
     <main className="container">
       <header>
@@ -170,7 +190,38 @@ const App = () => {
             disabled={loadStatus !== "loaded"}
           />
         </div>
-        <div className="layout-canvas">Blocks (canvas)</div>
+        <div className="layout-canvas">
+          <div className="toolbar-mode">
+            <span className="toolbar-mode-label">Mode:</span>
+            <button
+              type="button"
+              className={editorMode === "edit" ? "is-active" : ""}
+              onClick={() => setEditorMode("edit")}
+              aria-pressed={editorMode === "edit"}
+            >
+              Edit
+            </button>
+            <button
+              type="button"
+              className={editorMode === "layout" ? "is-active" : ""}
+              onClick={() => setEditorMode("layout")}
+              aria-pressed={editorMode === "layout"}
+            >
+              Layout
+            </button>
+          </div>
+          <BlockLibrary
+            onAddBlock={handleAddBlock}
+            disabled={loadStatus !== "loaded" || !selectedPageId}
+          />
+          <BlockCanvas
+            blocks={currentBlocks}
+            selectedBlockId={selectedBlockId}
+            mode={editorMode}
+            onSelectBlock={setSelectedBlockId}
+            disabled={loadStatus !== "loaded" || !selectedPageId}
+          />
+        </div>
         <div className="layout-right">Inspector + Preview</div>
       </section>
     </main>
