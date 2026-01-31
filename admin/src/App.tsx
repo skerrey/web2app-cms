@@ -152,6 +152,16 @@ const App = () => {
     setIsDirty(true)
   }
 
+  const handleReorderBlocks = (newBlocks: Block[]) => {
+    if (!selectedPageId) return
+    setPages((prev) =>
+      prev.map((p) =>
+        p.id === selectedPageId ? { ...p, blocks: newBlocks } : p
+      )
+    )
+    setIsDirty(true)
+  }
+
   return (
     <main className="container">
       <header>
@@ -219,6 +229,7 @@ const App = () => {
             selectedBlockId={selectedBlockId}
             mode={editorMode}
             onSelectBlock={setSelectedBlockId}
+            onReorderBlocks={handleReorderBlocks}
             disabled={loadStatus !== "loaded" || !selectedPageId}
           />
         </div>

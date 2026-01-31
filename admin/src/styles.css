@@ -211,6 +211,11 @@ button:disabled {
   box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.2);
 }
 
+.block-canvas-item.is-dragging {
+  z-index: 1;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
 .block-canvas-handle {
   display: flex;
   align-items: center;
