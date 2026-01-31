@@ -13,7 +13,7 @@ Admin
 Android App
 
 Role of each folder:
-- `admin/`: The admin area for managing and organizing content.
+- `admin/`: The admin area for managing and organizing content. React + Vite block editor; served at `/admin` when deployed. See [admin/README.md](admin/README.md) for how to run locally and deploy.
 - `content/`: Stored content and assets used by the system.
 - `android/`: The Android app workspace that consumes the content.
 - `docs/`: Project documentation and guides.

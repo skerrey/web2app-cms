@@ -43,6 +43,7 @@ const App = () => {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [publishStatus, setPublishStatus] = useState<string | null>(null)
   const [editorMode, setEditorMode] = useState<EditorMode>("edit")
+  const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
     return () => {
@@ -98,7 +99,7 @@ const App = () => {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [reloadKey])
 
   const statusMessage =
     publishStatus != null
@@ -239,6 +240,14 @@ const App = () => {
         <p>Block-based visual editor. (Sidebar, canvas, inspector + preview coming next.)</p>
       </header>
       <section className="actions">
+        <button
+          type="button"
+          onClick={() => setReloadKey((k) => k + 1)}
+          disabled={loadStatus === "loading" || isPublishing}
+          aria-label="Reload content"
+        >
+          Reload
+        </button>
         <button
           type="button"
           id="publishButton"
