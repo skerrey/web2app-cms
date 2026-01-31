@@ -262,7 +262,13 @@ const publishToGitHub = async () => {
   const repo = getEnvValue("GITHUB_REPO")
 
   if (!token || !owner || !repo) {
+    const missing = []
+    if (!token) missing.push("GITHUB_TOKEN")
+    if (!owner) missing.push("GITHUB_OWNER")
+    if (!repo) missing.push("GITHUB_REPO")
+    const message = `Missing GitHub environment values: ${missing.join(", ")}`
     setStatus("Missing GitHub environment values")
+    console.error(message)
     return
   }
 
