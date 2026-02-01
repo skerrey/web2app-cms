@@ -63,6 +63,13 @@ export interface BlockStyles {
   contentAlign?: "left" | "center" | "right"
   fontSize?: string
   backgroundColor?: string
+  /** Grid/layout: position (static, relative, absolute, fixed, sticky) */
+  position?: "static" | "relative" | "absolute" | "fixed" | "sticky"
+  /** Grid/layout: inset for position (e.g. "0", "auto") */
+  top?: string
+  right?: string
+  bottom?: string
+  left?: string
   [key: string]: string | undefined
 }
 

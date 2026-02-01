@@ -324,6 +324,7 @@ const App = () => {
     if (!selectedPageId) return
     const block = createGridBlock(columns)
     handleAddBlock(block)
+    setEditorMode("layout")
   }
 
   const handleReorderBlocks = (newBlocks: Block[]) => {

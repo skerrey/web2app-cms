@@ -130,6 +130,75 @@ const LayoutInspector = ({
           </h3>
           <div className="flex flex-col gap-3">
             <label className={fieldClass}>
+              <span className="text-sm font-medium">Position</span>
+              <select
+                value={styleValue("position") || "static"}
+                onChange={(e) =>
+                  updateStyles({
+                    position: (e.target.value || undefined) as BlockStyles["position"]
+                  })
+                }
+                disabled={disabled}
+                className={inputClass}
+              >
+                <option value="static">Static (default)</option>
+                <option value="relative">Relative</option>
+                <option value="absolute">Absolute</option>
+                <option value="fixed">Fixed</option>
+                <option value="sticky">Sticky</option>
+              </select>
+            </label>
+            {(styleValue("position") === "sticky" ||
+              styleValue("position") === "absolute" ||
+              styleValue("position") === "fixed") && (
+              <>
+                <label className={fieldClass}>
+                  <span className="text-sm font-medium">Top</span>
+                  <input
+                    type="text"
+                    value={styleValue("top")}
+                    onChange={(e) => updateStyles({ top: e.target.value || undefined })}
+                    disabled={disabled}
+                    placeholder="e.g. 0 or auto"
+                    className={inputClass}
+                  />
+                </label>
+                <label className={fieldClass}>
+                  <span className="text-sm font-medium">Right</span>
+                  <input
+                    type="text"
+                    value={styleValue("right")}
+                    onChange={(e) => updateStyles({ right: e.target.value || undefined })}
+                    disabled={disabled}
+                    placeholder="e.g. 0 or auto"
+                    className={inputClass}
+                  />
+                </label>
+                <label className={fieldClass}>
+                  <span className="text-sm font-medium">Bottom</span>
+                  <input
+                    type="text"
+                    value={styleValue("bottom")}
+                    onChange={(e) => updateStyles({ bottom: e.target.value || undefined })}
+                    disabled={disabled}
+                    placeholder="e.g. 0 (stick to bottom)"
+                    className={inputClass}
+                  />
+                </label>
+                <label className={fieldClass}>
+                  <span className="text-sm font-medium">Left</span>
+                  <input
+                    type="text"
+                    value={styleValue("left")}
+                    onChange={(e) => updateStyles({ left: e.target.value || undefined })}
+                    disabled={disabled}
+                    placeholder="e.g. 0 or auto"
+                    className={inputClass}
+                  />
+                </label>
+              </>
+            )}
+            <label className={fieldClass}>
               <span className="text-sm font-medium">Gap</span>
               <input
                 type="text"

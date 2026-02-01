@@ -396,7 +396,7 @@ const SortableBlockRow = ({
             gap: block.styles?.gap ?? "8px"
           }}
           onClick={(e) => {
-            if ((e.target as HTMLElement).closest("[data-cell-drop]") == null) return
+            if ((e.target as HTMLElement).closest("[data-cell-drop]") != null) return
             e.stopPropagation()
             onSelect()
           }}

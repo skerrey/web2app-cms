@@ -16,7 +16,12 @@ const GridBlock = ({ data, styles = {} }: GridBlockProps) => {
     gap: styles.gap ?? "8px",
     padding: styles.padding,
     backgroundColor: styles.backgroundColor,
-    width: styles.width
+    width: styles.width,
+    position: styles.position ?? "static",
+    top: styles.top,
+    right: styles.right,
+    bottom: styles.bottom,
+    left: styles.left
   }
 
   const renderCellBlock = (block: Block) => {
