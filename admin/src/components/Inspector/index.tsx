@@ -26,7 +26,7 @@ const Inspector = ({
   titleClassName = ""
 }: InspectorProps) => {
   return (
-    <div>
+    <div className={className}>
       <div className={`flex items-center justify-between gap-3 border-b border-gray-200 mb-2 sticky top-0 bg-white ${titleClassName} px-2`}>
         <h3 className="text-lg font-bold">
           {mode.charAt(0).toUpperCase() + mode.slice(1)}
