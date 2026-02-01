@@ -1,4 +1,7 @@
+import { useState } from "react"
 import type { Block, BlockData, BlockStyles, Page } from "../../types"
+import { HiOutlineTrash } from "react-icons/hi2"
+import Modal from "../Modal"
 
 const TEXT_ALIGN_OPTIONS: Array<{ value: BlockStyles["textAlign"]; label: string }> = [
   { value: undefined, label: "(default)" },
@@ -47,6 +50,7 @@ const BUTTON_DATA_CONFIG = (pages: Page[]): DataFieldConfig[] => [
 export interface EditInspectorProps {
   block: Block
   onUpdateBlock: (block: Block) => void
+  onDeleteBlock?: (blockId: string) => void
   pages?: Page[]
   disabled?: boolean
 }
@@ -134,7 +138,8 @@ const StyleInputRow = ({ config, value, onChange, disabled = false }: StyleInput
   </label>
 )
 
-const EditInspector = ({ block, onUpdateBlock, pages = [], disabled = false }: EditInspectorProps) => {
+const EditInspector = ({ block, onUpdateBlock, onDeleteBlock, pages = [], disabled = false }: EditInspectorProps) => {
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
   const updateData = (data: BlockData) => {
     onUpdateBlock({ ...block, data: { ...block.data, ...data } })
   }
@@ -162,9 +167,22 @@ const EditInspector = ({ block, onUpdateBlock, pages = [], disabled = false }: E
 
   return (
     <div className="flex flex-col gap-4 mb-4">
-      <div>
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">Block type</h3>
-        <span className="text-base font-medium">{block.type.charAt(0).toUpperCase() + block.type.slice(1)}</span>
+      <div className="flex items-center justify-between gap-2">
+        <div>
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">Block type</h3>
+          <span className="text-base font-medium">{block.type.charAt(0).toUpperCase() + block.type.slice(1)}</span>
+        </div>
+        {onDeleteBlock != null && (
+          <button
+            type="button"
+            className="p-1.5 rounded border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 disabled:opacity-60 disabled:cursor-not-allowed shrink-0"
+            onClick={() => setShowDeleteModal(true)}
+            disabled={disabled}
+            aria-label={`Delete ${block.type} block`}
+          >
+            <HiOutlineTrash className="w-4 h-4" aria-hidden />
+          </button>
+        )}
       </div>
 
       <div>
@@ -199,6 +217,22 @@ const EditInspector = ({ block, onUpdateBlock, pages = [], disabled = false }: E
           ))}
         </div>
       </div>
+      <Modal
+        open={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="Delete block?"
+        primaryLabel="Delete"
+        onPrimary={() => {
+          onDeleteBlock?.(block.id)
+          setShowDeleteModal(false)
+        }}
+        cancelLabel="Cancel"
+        onCancel={() => setShowDeleteModal(false)}
+      >
+        <p className="text-sm text-gray-600 m-0">
+          Are you sure you want to delete this {block.type} block?
+        </p>
+      </Modal>
     </div>
   )
 }

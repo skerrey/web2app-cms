@@ -70,6 +70,23 @@ const findBlockInBlocks = (blocks: Block[], blockId: string | null): Block | nul
   return null
 }
 
+/** Find which grid cell contains a block id. Returns grid id, cell id, and index in that cell. */
+const findCellContainingBlockId = (
+  blocks: Block[],
+  blockId: string
+): { gridBlockId: string; cellId: string; index: number } | null => {
+  for (const b of blocks) {
+    if (b.type === "grid") {
+      const data = b.data as GridBlockData
+      for (const cell of data.cells ?? []) {
+        const index = cell.blocks.findIndex((nb) => nb.id === blockId)
+        if (index !== -1) return { gridBlockId: b.id, cellId: cell.id, index }
+      }
+    }
+  }
+  return null
+}
+
 const removeBlockFromBlocks = (blocks: Block[], blockId: string): { blocks: Block[]; removed: boolean } => {
   let removed = false
   const nextTop = blocks
@@ -106,6 +123,9 @@ const App = () => {
         blockType?: "text" | "hero" | "button"
         columns?: number
         pageId?: string
+        blockId?: string
+        gridBlockId?: string
+        cellId?: string
       }
     | null
   >(null)
@@ -358,6 +378,94 @@ const App = () => {
     setIsDirty(true)
   }
 
+  const handleReorderBlocksInCell = (gridBlockId: string, cellId: string, newBlocks: Block[]) => {
+    if (!selectedPageId) return
+    setPages((prev) =>
+      prev.map((p) => {
+        if (p.id !== selectedPageId) return p
+        return {
+          ...p,
+          blocks: p.blocks.map((b) => {
+            if (b.id !== gridBlockId || b.type !== "grid") return b
+            const data = b.data as GridBlockData
+            return {
+              ...b,
+              data: {
+                ...data,
+                cells: (data.cells ?? []).map((cell) =>
+                  cell.id === cellId ? { ...cell, blocks: newBlocks } : cell
+                )
+              }
+            }
+          })
+        }
+      })
+    )
+    setIsDirty(true)
+  }
+
+  const handleMoveNestedBlock = (
+    blockId: string,
+    fromGridId: string,
+    fromCellId: string,
+    toGridId: string,
+    toCellId: string,
+    insertAtIndex?: number
+  ) => {
+    if (!selectedPageId) return
+    if (fromGridId === toGridId && fromCellId === toCellId) return
+    const gridBlock = currentPage?.blocks.find((b) => b.id === fromGridId && b.type === "grid")
+    const gridData = gridBlock?.data as GridBlockData | undefined
+    const fromCell = gridData?.cells?.find((c) => c.id === fromCellId)
+    const blockToMove = fromCell?.blocks.find((nb) => nb.id === blockId)
+    if (!blockToMove) return
+
+    const insertAt = (targetBlocks: Block[]): Block[] => {
+      if (insertAtIndex != null && insertAtIndex >= 0 && insertAtIndex <= targetBlocks.length) {
+        return [...targetBlocks.slice(0, insertAtIndex), blockToMove, ...targetBlocks.slice(insertAtIndex)]
+      }
+      return [...targetBlocks, blockToMove]
+    }
+
+    setPages((prev) =>
+      prev.map((p) => {
+        if (p.id !== selectedPageId) return p
+        return {
+          ...p,
+          blocks: p.blocks.map((b) => {
+            if (b.type !== "grid") return b
+            const data = b.data as GridBlockData
+            const cells = data.cells ?? []
+            if (b.id === fromGridId) {
+              const cellsWithout = cells.map((c) =>
+                c.id === fromCellId
+                  ? { ...c, blocks: c.blocks.filter((nb) => nb.id !== blockId) }
+                  : c
+              )
+              if (fromGridId === toGridId) {
+                const toCell = cellsWithout.find((c) => c.id === toCellId)
+                const cellsWith = cellsWithout.map((c) =>
+                  c.id === toCellId ? { ...c, blocks: insertAt(toCell?.blocks ?? []) } : c
+                )
+                return { ...b, data: { ...data, cells: cellsWith } }
+              }
+              return { ...b, data: { ...data, cells: cellsWithout } }
+            }
+            if (b.id === toGridId) {
+              const toCell = cells.find((c) => c.id === toCellId)
+              const cellsWith = cells.map((c) =>
+                c.id === toCellId ? { ...c, blocks: insertAt(toCell?.blocks ?? []) } : c
+              )
+              return { ...b, data: { ...data, cells: cellsWith } }
+            }
+            return b
+          })
+        }
+      })
+    )
+    setIsDirty(true)
+  }
+
   const selectedBlock = findBlockInBlocks(
     currentPage?.blocks ?? [],
     selectedBlockId
@@ -412,7 +520,15 @@ const App = () => {
     if (over == null) return
 
     const activeData = active.data.current as
-      | { type?: string; columns?: number; blockType?: "text" | "hero" | "button"; pageId?: string }
+      | {
+          type?: string
+          columns?: number
+          blockType?: "text" | "hero" | "button"
+          pageId?: string
+          blockId?: string
+          gridBlockId?: string
+          cellId?: string
+        }
       | undefined
     const overId = String(over.id)
 
@@ -447,6 +563,52 @@ const App = () => {
       return
     }
 
+    if (
+      activeData?.type === "nested-block" &&
+      typeof activeData.gridBlockId === "string" &&
+      typeof activeData.cellId === "string" &&
+      typeof activeData.blockId === "string"
+    ) {
+      const fromGridId = activeData.gridBlockId
+      const fromCellId = activeData.cellId
+      const blockId = activeData.blockId
+
+      if (overId.startsWith("cell-")) {
+        const parts = overId.slice(5).split("__")
+        const toGridId = parts[0]
+        const toCellId = parts[1]
+        if (toGridId != null && toCellId != null) {
+          handleMoveNestedBlock(blockId, fromGridId, fromCellId, toGridId, toCellId)
+        }
+        return
+      }
+
+      const gridBlock = currentBlocks.find((b) => b.id === fromGridId && b.type === "grid")
+      const gridData = gridBlock?.data as GridBlockData | undefined
+      const fromCell = gridData?.cells?.find((c) => c.id === fromCellId)
+
+      if (fromCell && overId !== active.id) {
+        const inSameCell = fromCell.blocks.some((b) => b.id === over.id)
+        if (inSameCell) {
+          const oldIndex = fromCell.blocks.findIndex((b) => b.id === active.id)
+          const newIndex = fromCell.blocks.findIndex((b) => b.id === over.id)
+          if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
+            handleReorderBlocksInCell(fromGridId, fromCellId, arrayMove(fromCell.blocks, oldIndex, newIndex))
+          }
+          return
+        }
+      }
+
+      const toCellInfo = findCellContainingBlockId(currentPage?.blocks ?? [], overId)
+      if (toCellInfo) {
+        const { gridBlockId: toGridId, cellId: toCellId, index } = toCellInfo
+        if (fromGridId !== toGridId || fromCellId !== toCellId) {
+          handleMoveNestedBlock(blockId, fromGridId, fromCellId, toGridId, toCellId, index)
+        }
+      }
+      return
+    }
+
     const oldIndex = currentBlocks.findIndex((b) => b.id === active.id)
     const newIndex = currentBlocks.findIndex((b) => b.id === over.id)
     if (oldIndex !== -1 && newIndex !== -1 && active.id !== over.id) {
@@ -463,6 +625,17 @@ const App = () => {
           : activeDrag.blockType === "hero"
             ? "Hero"
             : "Button"
+      return (
+        <div className="px-3 py-2 text-sm rounded border border-gray-400 bg-white shadow-lg opacity-95">
+          {label}
+        </div>
+      )
+    }
+    if (activeDrag.type === "nested-block") {
+      const block = findBlockInBlocks(currentPage?.blocks ?? [], activeDrag.blockId ?? null)
+      const label = block
+        ? block.type.charAt(0).toUpperCase() + block.type.slice(1)
+        : "Block"
       return (
         <div className="px-3 py-2 text-sm rounded border border-gray-400 bg-white shadow-lg opacity-95">
           {label}
@@ -588,6 +761,7 @@ const App = () => {
             mode={editorMode}
             onChangeMode={setEditorMode}
             onUpdateBlock={handleUpdateBlock}
+            onDeleteBlock={handleDeleteBlock}
             pages={pages}
             disabled={loadStatus !== "loaded" || !selectedPageId}
             onAddLayoutBlock={handleAddLayoutBlock}

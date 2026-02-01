@@ -7,6 +7,7 @@ export interface InspectorProps {
   mode: EditorMode
   onChangeMode?: (mode: EditorMode) => void
   onUpdateBlock: (block: Block) => void
+  onDeleteBlock?: (blockId: string) => void
   pages?: Page[]
   disabled?: boolean
   onAddLayoutBlock?: (columns: number) => void
@@ -19,6 +20,7 @@ const Inspector = ({
   mode,
   onChangeMode,
   onUpdateBlock,
+  onDeleteBlock,
   pages = [],
   disabled = false,
   onAddLayoutBlock,
@@ -67,6 +69,7 @@ const Inspector = ({
             <EditInspector
               block={block}
               onUpdateBlock={onUpdateBlock}
+              onDeleteBlock={onDeleteBlock}
               pages={pages}
               disabled={disabled}
             /> 

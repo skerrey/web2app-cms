@@ -9,6 +9,7 @@ import { CSS } from "@dnd-kit/utilities"
 import type { Block, BlockData, GridBlockData } from "../types"
 import { getBlockComponent } from "../blocks"
 import { HiOutlineBars3, HiOutlineTrash } from "react-icons/hi2"
+import { IoCloseCircleOutline } from "react-icons/io5"
 import type { EditorMode } from "../types"
 import Modal from "./Modal"
 
@@ -61,9 +62,21 @@ interface SortableBlockRowProps {
   onSelect: () => void
   onSelectBlock: (id: string | null) => void
   onUpdateBlock?: (block: Block) => void
+  onRequestDeleteBlock?: (blockId: string, blockType: string) => void
   onDeleteBlock?: (blockId: string) => void
   disabled?: boolean
   selectedBlockId: string | null
+}
+
+interface SortableNestedBlockRowProps {
+  block: Block
+  gridBlockId: string
+  cellId: string
+  selectedBlockId: string | null
+  onSelectBlock: (id: string | null) => void
+  onUpdateBlock?: (block: Block) => void
+  onDeleteBlock?: (blockId: string) => void
+  disabled?: boolean
 }
 
 const inputClass =
@@ -197,6 +210,113 @@ const BlockInlineEditor = ({
   )
 }
 
+const SortableNestedBlockRow = ({
+  block: b,
+  gridBlockId,
+  cellId,
+  selectedBlockId,
+  onSelectBlock,
+  onUpdateBlock,
+  onDeleteBlock,
+  disabled = false
+}: SortableNestedBlockRowProps) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({
+    id: b.id,
+    data: { type: "nested-block", blockId: b.id, gridBlockId, cellId }
+  })
+  const C = getBlockComponent(b.type)
+  const nestedSelected = selectedBlockId === b.id
+  const canInlineEditNested = onUpdateBlock != null && b.type !== "grid"
+  const showNestedDelete = b.type !== "grid" && onDeleteBlock != null
+  const showNestedDragHandle = b.type !== "grid"
+
+  if (!C) {
+    return (
+      <span className="text-gray-500 text-xs">
+        {b.type}
+      </span>
+    )
+  }
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      role="button"
+      tabIndex={0}
+      className={`group/nested relative rounded border p-1.5 ${
+        canInlineEditNested ? "" : "text-sm cursor-pointer"
+      } focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset ${
+        nestedSelected
+          ? "border-primary bg-primary-light"
+          : "border-gray-200 bg-white hover:bg-gray-50"
+      } ${isDragging ? "opacity-40" : ""}`}
+      onClick={(e) => {
+        e.stopPropagation()
+        onSelectBlock(b.id)
+      }}
+      onKeyDown={(e) => {
+        if (isTextInputTarget(e.target)) return
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault()
+          onSelectBlock(b.id)
+        }
+      }}
+      data-cell-drop
+    >
+      {showNestedDragHandle && (
+        <button
+          type="button"
+          className="absolute top-[-10px] left-[-10px] z-10 rounded-full text-gray-400 bg-white hover:text-gray-600 hover:bg-gray-50 opacity-0 group-hover/nested:opacity-100 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed p-0.5 border-[1px] border-gray-200 cursor-grab active:cursor-grabbing touch-none"
+          aria-label="Drag to reorder or move"
+          disabled={disabled}
+          {...attributes}
+          {...listeners}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <HiOutlineBars3 aria-hidden />
+        </button>
+      )}
+      {showNestedDelete && (
+        <button
+          type="button"
+          className="absolute top-[-10px] right-[-10px] z-10 rounded-full p-0.5 text-gray-400 bg-white hover:text-red-600 hover:bg-red-50 opacity-0 group-hover/nested:opacity-100 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed"
+          onClick={(e) => {
+            e.stopPropagation()
+            onDeleteBlock(b.id)
+          }}
+          disabled={disabled}
+          aria-label={`Delete ${b.type} block`}
+        >
+          <IoCloseCircleOutline className="w-5 h-5" aria-hidden />
+        </button>
+      )}
+      {canInlineEditNested ? (
+        <BlockInlineEditor
+          block={b}
+          onUpdateBlock={onUpdateBlock}
+          onSelect={() => onSelectBlock(b.id)}
+          disabled={disabled}
+        />
+      ) : (
+        <C data={b.data} styles={b.styles} />
+      )}
+    </div>
+  )
+}
+
 const SortableBlockRow = ({
   block,
   isSelected,
@@ -204,6 +324,7 @@ const SortableBlockRow = ({
   onSelect,
   onSelectBlock,
   onUpdateBlock,
+  onRequestDeleteBlock,
   onDeleteBlock,
   disabled = false,
   selectedBlockId
@@ -244,7 +365,7 @@ const SortableBlockRow = ({
         >
           <HiOutlineBars3 className="w-4 h-4 text-gray-600" aria-hidden />
         </button>
-        {onDeleteBlock && (
+        {onRequestDeleteBlock && (
           <button
             type="button"
             className="p-1.5 rounded border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 disabled:opacity-60 disabled:cursor-not-allowed"
@@ -252,7 +373,7 @@ const SortableBlockRow = ({
             disabled={disabled}
             onClick={(e) => {
               e.stopPropagation()
-              onDeleteBlock(block.id)
+              onRequestDeleteBlock(block.id, block.type)
             }}
           >
             <HiOutlineTrash className="w-4 h-4" aria-hidden />
@@ -302,55 +423,26 @@ const SortableBlockRow = ({
                   {mode === "layout" ? "Drop block here" : "Empty"}
                 </span>
               ) : (
-                <div className="flex flex-col gap-1" data-cell-drop>
-                  {cell.blocks.map((b) => {
-                    const C = getBlockComponent(b.type)
-                    const nestedSelected = selectedBlockId === b.id
-                    const canInlineEditNested =
-                      onUpdateBlock != null && b.type !== "grid"
-                    return C ? (
-                      <div
+                <SortableContext
+                  items={cell.blocks.map((b) => b.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="flex flex-col gap-1" data-cell-drop>
+                    {cell.blocks.map((b) => (
+                      <SortableNestedBlockRow
                         key={b.id}
-                        role="button"
-                        tabIndex={0}
-                        className={`rounded border p-1.5 ${
-                          canInlineEditNested ? "" : "text-sm cursor-pointer"
-                        } focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset ${
-                          nestedSelected
-                            ? "border-primary bg-primary-light"
-                            : "border-gray-200 bg-white hover:bg-gray-50"
-                        }`}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          onSelectBlock(b.id)
-                        }}
-                        onKeyDown={(e) => {
-                          if (isTextInputTarget(e.target)) return
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault()
-                            onSelectBlock(b.id)
-                          }
-                        }}
-                        data-cell-drop
-                      >
-                        {canInlineEditNested ? (
-                          <BlockInlineEditor
-                            block={b}
-                            onUpdateBlock={onUpdateBlock}
-                            onSelect={() => onSelectBlock(b.id)}
-                            disabled={disabled}
-                          />
-                        ) : (
-                          <C data={b.data} styles={b.styles} />
-                        )}
-                      </div>
-                    ) : (
-                      <span key={b.id} className="text-gray-500 text-xs">
-                        {b.type}
-                      </span>
-                    )
-                  })}
-                </div>
+                        block={b}
+                        gridBlockId={block.id}
+                        cellId={cell.id}
+                        selectedBlockId={selectedBlockId}
+                        onSelectBlock={onSelectBlock}
+                        onUpdateBlock={onUpdateBlock}
+                        onDeleteBlock={onDeleteBlock}
+                        disabled={disabled}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
               )}
             </CellDropZone>
           ))}
@@ -407,11 +499,12 @@ const BlockCanvas = ({
                   onSelect={() => onSelectBlock(block.id)}
                   onSelectBlock={onSelectBlock}
                   onUpdateBlock={onUpdateBlock}
-                  onDeleteBlock={
+                  onRequestDeleteBlock={
                     onDeleteBlock
-                      ? (id) => setBlockToDelete({ id, type: block.type })
+                      ? (id, type) => setBlockToDelete({ id, type })
                       : undefined
                   }
+                  onDeleteBlock={onDeleteBlock}
                   disabled={disabled}
                   selectedBlockId={selectedBlockId}
                 />
