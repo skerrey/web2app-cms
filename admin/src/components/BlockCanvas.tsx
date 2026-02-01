@@ -1,5 +1,5 @@
 import { useDroppable } from "@dnd-kit/core"
-import { useState } from "react"
+import { useRef, useState, useCallback, useEffect } from "react"
 import {
   SortableContext,
   useSortable,
@@ -52,6 +52,7 @@ export interface BlockCanvasProps {
   onReorderBlocks: (blocks: Block[]) => void
   onUpdateBlock?: (block: Block) => void
   onDeleteBlock?: (blockId: string) => void
+  onAdjustGridSpans?: (blockId: string, cellIndex: number, newSpan: number) => void
   disabled?: boolean
 }
 
@@ -64,6 +65,7 @@ interface SortableBlockRowProps {
   onUpdateBlock?: (block: Block) => void
   onRequestDeleteBlock?: (blockId: string, blockType: string) => void
   onDeleteBlock?: (blockId: string) => void
+  onAdjustGridSpans?: (blockId: string, cellIndex: number, newSpan: number) => void
   disabled?: boolean
   selectedBlockId: string | null
 }
@@ -317,6 +319,222 @@ const SortableNestedBlockRow = ({
   )
 }
 
+const GRID_COLUMNS_DEFAULT = 12
+
+const GridRowWithSliders = ({
+  block,
+  mode,
+  onSelect,
+  onSelectBlock,
+  onUpdateBlock,
+  onDeleteBlock,
+  onAdjustGridSpans,
+  selectedBlockId,
+  disabled = false,
+  isTextInputTarget
+}: {
+  block: Block
+  mode: EditorMode
+  onSelect: () => void
+  onSelectBlock: (id: string | null) => void
+  onUpdateBlock?: (block: Block) => void
+  onDeleteBlock?: (blockId: string) => void
+  onAdjustGridSpans?: (blockId: string, cellIndex: number, newSpan: number) => void
+  selectedBlockId: string | null
+  disabled: boolean
+  isTextInputTarget: (target: EventTarget | null) => boolean
+}) => {
+  const gridData = block.data as GridBlockData
+  const gridColumns = gridData.gridColumns ?? GRID_COLUMNS_DEFAULT
+  const cells = gridData.cells ?? []
+  const gridRef = useRef<HTMLDivElement | null>(null)
+  const [draggingGutter, setDraggingGutter] = useState<number | null>(null)
+  const [dragPreviewSpanA, setDragPreviewSpanA] = useState<number | null>(null)
+
+  const handleGutterMouseMove = useCallback(
+    (e: MouseEvent) => {
+      const cellIndex = draggingGutter
+      if (cellIndex == null) return
+      const cellA = cells[cellIndex]
+      const cellB = cells[cellIndex + 1]
+      if (cellA == null || cellB == null) return
+      const spanA = cellA.span ?? 1
+      const spanB = cellB.span ?? 1
+      const gridEl = gridRef.current
+      if (!gridEl) return
+      const rect = gridEl.getBoundingClientRect()
+      const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
+      const cumulativeBefore = cells.slice(0, cellIndex).reduce((s, c) => s + (c.span ?? 1), 0)
+      const boundaryCol = Math.round(ratio * gridColumns)
+      const newSpanA = Math.min(spanA + spanB - 1, Math.max(1, boundaryCol - cumulativeBefore))
+      setDragPreviewSpanA(newSpanA)
+    },
+    [draggingGutter, cells, gridColumns]
+  )
+
+  const handleGutterMouseUp = useCallback(
+    (e: MouseEvent) => {
+      const cellIndex = draggingGutter
+      setDraggingGutter(null)
+      setDragPreviewSpanA(null)
+      document.removeEventListener("mouseup", handleGutterMouseUp)
+      document.removeEventListener("mousemove", handleGutterMouseMove)
+      document.body.style.cursor = ""
+      document.body.style.userSelect = ""
+      if (cellIndex == null || onAdjustGridSpans == null) return
+      const cellA = cells[cellIndex]
+      const cellB = cells[cellIndex + 1]
+      if (cellA == null || cellB == null) return
+      const spanA = cellA.span ?? 1
+      const spanB = cellB.span ?? 1
+      const gridEl = gridRef.current
+      if (!gridEl) return
+      const rect = gridEl.getBoundingClientRect()
+      const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
+      const cumulativeBefore = cells.slice(0, cellIndex).reduce((s, c) => s + (c.span ?? 1), 0)
+      const currentBoundaryCol = cumulativeBefore + spanA
+      const rawCol = ratio * gridColumns
+      // Dead zone: don't update unless pointer moved at least ~half a column from current boundary
+      const deadZone = 0.5
+      if (Math.abs(rawCol - currentBoundaryCol) < deadZone) return
+      const boundaryCol = Math.round(rawCol)
+      const newSpanA = Math.min(spanA + spanB - 1, Math.max(1, boundaryCol - cumulativeBefore))
+      if (newSpanA === spanA) return
+      onAdjustGridSpans(block.id, cellIndex, newSpanA)
+    },
+    [draggingGutter, block.id, cells, gridColumns, onAdjustGridSpans]
+  )
+
+  useEffect(() => {
+    if (draggingGutter == null) return
+    document.body.style.cursor = "col-resize"
+    document.body.style.userSelect = "none"
+    document.addEventListener("mouseup", handleGutterMouseUp)
+    document.addEventListener("mousemove", handleGutterMouseMove)
+    return () => {
+      document.removeEventListener("mouseup", handleGutterMouseUp)
+      document.removeEventListener("mousemove", handleGutterMouseMove)
+      document.body.style.cursor = ""
+      document.body.style.userSelect = ""
+    }
+  }, [draggingGutter, handleGutterMouseUp, handleGutterMouseMove])
+
+  return (
+    <div
+      className="flex-1 min-w-0 relative p-2"
+      onClick={(e) => {
+        if ((e.target as HTMLElement).closest("[data-cell-drop]") != null) return
+        if ((e.target as HTMLElement).closest("[data-span-slider]") != null) return
+        e.stopPropagation()
+        onSelect()
+      }}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (isTextInputTarget(e.target)) return
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault()
+          onSelect()
+        }
+      }}
+    >
+      <div
+        ref={gridRef}
+        className="grid gap-2 min-h-[80px]"
+        style={{
+          gridTemplateColumns: `repeat(${gridColumns}, minmax(0, 1fr))`,
+          gap: block.styles?.gap ?? "8px"
+        }}
+      >
+        {cells.map((cell, cellIndex) => {
+          const baseSpan = cell.span != null ? Math.min(gridColumns, Math.max(1, cell.span)) : Math.max(1, Math.floor(gridColumns / cells.length))
+          let span = baseSpan
+          if (draggingGutter != null && dragPreviewSpanA != null) {
+            if (cellIndex === draggingGutter) {
+              const spanB = cells[cellIndex + 1]?.span ?? 1
+              span = Math.min((cells[draggingGutter]?.span ?? 1) + spanB - 1, Math.max(1, dragPreviewSpanA))
+            } else if (cellIndex === draggingGutter + 1) {
+              const spanA = cells[draggingGutter]?.span ?? 1
+              const spanB = cell.span ?? 1
+              const previewA = Math.min(spanA + spanB - 1, Math.max(1, dragPreviewSpanA))
+              span = spanA + spanB - previewA
+            }
+          }
+          return (
+            <div key={cell.id} style={{ gridColumn: `span ${span}` }} className="min-w-0">
+              <CellDropZone
+                blockId={block.id}
+                cellId={cell.id}
+                isLayoutMode={mode === "layout"}
+                isEmpty={cell.blocks.length === 0}
+              >
+                {cell.blocks.length === 0 ? (
+                  <span className="text-xs text-gray-400" data-cell-drop>
+                    {mode === "layout" ? "Drop block here" : "Empty"}
+                  </span>
+                ) : (
+                  <SortableContext
+                    items={cell.blocks.map((b) => b.id)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    <div className="flex flex-col gap-1" data-cell-drop>
+                      {cell.blocks.map((b) => (
+                        <SortableNestedBlockRow
+                          key={b.id}
+                          block={b}
+                          gridBlockId={block.id}
+                          cellId={cell.id}
+                          selectedBlockId={selectedBlockId}
+                          onSelectBlock={onSelectBlock}
+                          onUpdateBlock={onUpdateBlock}
+                          onDeleteBlock={onDeleteBlock}
+                          disabled={disabled}
+                        />
+                      ))}
+                    </div>
+                  </SortableContext>
+                )}
+              </CellDropZone>
+            </div>
+          )
+        })}
+      </div>
+      {onAdjustGridSpans != null && !disabled && cells.length >= 2 && cells.slice(0, -1).map((_, i) => {
+        const cellA = cells[i]
+        const cellB = cells[i + 1]
+        if (cellA == null || cellB == null) return null
+        const cumulativeBefore = cells.slice(0, i).reduce((s, c) => s + (c.span ?? 1), 0)
+        const spanA = cellA.span ?? 1
+        const cumulative = draggingGutter === i && dragPreviewSpanA != null
+          ? cumulativeBefore + dragPreviewSpanA
+          : cumulativeBefore + spanA
+        const leftPct = (cumulative / gridColumns) * 100
+        return (
+          <div
+            key={`gutter-${i}`}
+            data-span-slider
+            role="separator"
+            aria-label={`Resize column boundary between column ${i + 1} and ${i + 2}`}
+            className="absolute top-0 bottom-0 z-10 cursor-col-resize"
+            style={{
+              left: `calc(${leftPct}% - 8px)`,
+              width: 16
+            }}
+            onMouseDown={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              const spanA = cellA.span ?? 1
+              setDraggingGutter(i)
+              setDragPreviewSpanA(spanA)
+            }}
+            onClick={(e) => e.stopPropagation()}
+          />
+        )
+      })}
+    </div>
+  )
+}
+
 const SortableBlockRow = ({
   block,
   isSelected,
@@ -326,6 +544,7 @@ const SortableBlockRow = ({
   onUpdateBlock,
   onRequestDeleteBlock,
   onDeleteBlock,
+  onAdjustGridSpans,
   disabled = false,
   selectedBlockId
 }: SortableBlockRowProps) => {
@@ -389,64 +608,18 @@ const SortableBlockRow = ({
           disabled={disabled}
         />
       ) : block.type === "grid" ? (
-        <div
-          className="flex-1 min-w-0 grid gap-2 p-2"
-          style={{
-            gridTemplateColumns: `repeat(${(block.data as GridBlockData).columns ?? 1}, minmax(0, 1fr))`,
-            gap: block.styles?.gap ?? "8px"
-          }}
-          onClick={(e) => {
-            if ((e.target as HTMLElement).closest("[data-cell-drop]") != null) return
-            e.stopPropagation()
-            onSelect()
-          }}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (isTextInputTarget(e.target)) return
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault()
-              onSelect()
-            }
-          }}
-        >
-          {((block.data as GridBlockData).cells ?? []).map((cell) => (
-            <CellDropZone
-              key={cell.id}
-              blockId={block.id}
-              cellId={cell.id}
-              isLayoutMode={mode === "layout"}
-              isEmpty={cell.blocks.length === 0}
-            >
-              {cell.blocks.length === 0 ? (
-                <span className="text-xs text-gray-400" data-cell-drop>
-                  {mode === "layout" ? "Drop block here" : "Empty"}
-                </span>
-              ) : (
-                <SortableContext
-                  items={cell.blocks.map((b) => b.id)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  <div className="flex flex-col gap-1" data-cell-drop>
-                    {cell.blocks.map((b) => (
-                      <SortableNestedBlockRow
-                        key={b.id}
-                        block={b}
-                        gridBlockId={block.id}
-                        cellId={cell.id}
-                        selectedBlockId={selectedBlockId}
-                        onSelectBlock={onSelectBlock}
-                        onUpdateBlock={onUpdateBlock}
-                        onDeleteBlock={onDeleteBlock}
-                        disabled={disabled}
-                      />
-                    ))}
-                  </div>
-                </SortableContext>
-              )}
-            </CellDropZone>
-          ))}
-        </div>
+        <GridRowWithSliders
+          block={block}
+          mode={mode}
+          onSelect={onSelect}
+          onSelectBlock={onSelectBlock}
+          onUpdateBlock={onUpdateBlock}
+          onDeleteBlock={onDeleteBlock}
+          onAdjustGridSpans={onAdjustGridSpans}
+          selectedBlockId={selectedBlockId}
+          disabled={disabled}
+          isTextInputTarget={isTextInputTarget}
+        />
       ) : (
         <button
           type="button"
@@ -476,6 +649,7 @@ const BlockCanvas = ({
   onReorderBlocks: _onReorderBlocks,
   onUpdateBlock,
   onDeleteBlock,
+  onAdjustGridSpans,
   disabled = false
 }: BlockCanvasProps) => {
   const [blockToDelete, setBlockToDelete] = useState<{ id: string; type: string } | null>(null)
@@ -483,7 +657,7 @@ const BlockCanvas = ({
     <>
       <div className="mt-3 flex flex-col gap-2">
         {blocks.length === 0 ? (
-          <p className="text-sm text-gray-500 py-4">No blocks. Add one from Block Library or drag a layout preset from the Inspector.</p>
+          <p className="text-sm text-gray-500 p-4">No blocks. Add one from Block Library or drag a layout preset from the Inspector.</p>
         ) : (
           <SortableContext
             items={blocks.map((b) => b.id)}
@@ -505,6 +679,7 @@ const BlockCanvas = ({
                       : undefined
                   }
                   onDeleteBlock={onDeleteBlock}
+                  onAdjustGridSpans={onAdjustGridSpans}
                   disabled={disabled}
                   selectedBlockId={selectedBlockId}
                 />

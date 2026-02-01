@@ -51,12 +51,23 @@ export const createBlock = (type: "text" | "hero" | "button"): Block => {
   }
 }
 
+const DEFAULT_GRID_COLUMNS = 12
+
+const distributeSpans = (numCells: number, totalCols: number): number[] => {
+  const base = Math.floor(totalCols / numCells)
+  const remainder = totalCols - base * numCells
+  return Array.from({ length: numCells }, (_, i) => base + (i < remainder ? 1 : 0))
+}
+
 export const createGridBlock = (columns: number): Block => {
-  const cells: GridCell[] = Array.from({ length: columns }, () => ({
+  const gridColumns = DEFAULT_GRID_COLUMNS
+  const spans = distributeSpans(columns, gridColumns)
+  const cells: GridCell[] = Array.from({ length: columns }, (_, i) => ({
     id: generateCellId(),
+    span: spans[i],
     blocks: []
   }))
-  const data: GridBlockData = { columns, cells }
+  const data: GridBlockData = { columns, gridColumns, cells }
   return {
     id: generateBlockId(),
     type: "grid",
@@ -73,16 +84,28 @@ const normalizeBlock = (raw: RawBlock, _index: number): Block => {
   const id = raw.id ?? generateBlockId()
   let data: Block["data"]
   if (type === "grid") {
-    const gridRaw = raw.data as { columns?: number; cells?: { id?: string; blocks?: RawBlock[] }[] } | undefined
-    const columns = Math.min(12, Math.max(1, Number(gridRaw?.columns) || 2))
+    const gridRaw = raw.data as {
+      columns?: number
+      gridColumns?: number
+      cells?: { id?: string; span?: number; blocks?: RawBlock[] }[]
+    } | undefined
+    const gridColumns = Math.min(24, Math.max(1, Number(gridRaw?.gridColumns) || DEFAULT_GRID_COLUMNS))
+    const columns = Math.min(gridColumns, Math.max(1, Number(gridRaw?.columns) || 2))
     const rawCells = Array.isArray(gridRaw?.cells) ? gridRaw.cells : []
+    const defaultSpans = distributeSpans(columns, gridColumns)
     const cells: GridCell[] = Array.from({ length: columns }, (_, i) => {
       const rc = rawCells[i]
       const cellId = rc?.id ?? generateCellId()
       const blocks = (Array.isArray(rc?.blocks) ? rc.blocks : []).map((b, j) => normalizeBlock(b, j))
-      return { id: cellId, blocks }
+      const span = rc?.span != null ? Math.min(gridColumns, Math.max(1, Number(rc.span))) : defaultSpans[i]
+      return { id: cellId, span, blocks }
     })
-    data = { columns, cells }
+    const spanSum = cells.reduce((s, c) => s + (c.span ?? 1), 0)
+    const finalCells =
+      spanSum !== gridColumns
+        ? cells.map((c, i) => ({ ...c, span: distributeSpans(columns, gridColumns)[i] }))
+        : cells
+    data = { columns, gridColumns, cells: finalCells }
   } else if (raw.data) {
     data = raw.data as Block["data"]
   } else if (type === "text" && raw.text !== undefined) {
@@ -192,8 +215,10 @@ const serializeBlock = (b: Block): SerializedBlock => {
       b.type === "grid"
         ? {
             columns: (b.data as GridBlockData).columns,
+            gridColumns: (b.data as GridBlockData).gridColumns,
             cells: (b.data as GridBlockData).cells.map((cell) => ({
               id: cell.id,
+              span: cell.span,
               blocks: cell.blocks.map(serializeBlock)
             }))
           }

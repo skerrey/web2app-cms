@@ -1,5 +1,5 @@
 import { useState } from "react"
-import type { Block, BlockData, BlockStyles, Page } from "../../types"
+import type { Block, BlockData, BlockStyles, GridBlockData, Page } from "../../types"
 import { HiOutlineTrash } from "react-icons/hi2"
 import Modal from "../Modal"
 
@@ -204,7 +204,39 @@ const EditInspector = ({ block, onUpdateBlock, onDeleteBlock, pages = [], disabl
             />
           ))}
           {block.type === "grid" && (
-            <p className="text-sm text-gray-500">Grid layout is edited in the layout panel.</p>
+            <>
+              <label className={fieldClass}>
+                <span className="text-sm font-medium">Total columns (grid width)</span>
+                <select
+                  value={String((block.data as GridBlockData).gridColumns ?? 12)}
+                  onChange={(e) => {
+                    const newCols = Number(e.target.value)
+                    const gridData = block.data as GridBlockData
+                    const cells = gridData.cells ?? []
+                    const base = Math.floor(newCols / cells.length)
+                    const remainder = newCols - base * cells.length
+                    const spans = Array.from({ length: cells.length }, (_, i) => base + (i < remainder ? 1 : 0))
+                    onUpdateBlock({
+                      ...block,
+                      data: {
+                        ...gridData,
+                        gridColumns: newCols,
+                        cells: cells.map((c, i) => ({ ...c, span: spans[i] }))
+                      }
+                    })
+                  }}
+                  disabled={disabled}
+                  className={inputClass}
+                >
+                  {[6, 12, 24].map((n) => (
+                    <option key={n} value={n}>
+                      {n} columns
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <p className="text-sm text-gray-500">Use the slider between columns on the canvas to adjust span per cell.</p>
+            </>
           )}
         </div>
       </div>

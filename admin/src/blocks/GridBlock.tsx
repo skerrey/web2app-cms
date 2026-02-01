@@ -8,11 +8,14 @@ export interface GridBlockProps {
   styles?: BlockStyles
 }
 
+const GRID_COLUMNS_DEFAULT = 12
+
 const GridBlock = ({ data, styles = {} }: GridBlockProps) => {
-  const { columns, cells } = data
+  const { gridColumns = GRID_COLUMNS_DEFAULT, cells } = data
+  const totalCols = gridColumns
   const style: React.CSSProperties = {
     display: "grid",
-    gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+    gridTemplateColumns: `repeat(${totalCols}, minmax(0, 1fr))`,
     gap: styles.gap ?? "8px",
     padding: styles.padding,
     backgroundColor: styles.backgroundColor,
@@ -40,12 +43,14 @@ const GridBlock = ({ data, styles = {} }: GridBlockProps) => {
     <div className="min-h-[60px] w-full" style={style}>
       {(cells ?? []).map((cell) => {
         const empty = cell.blocks.length === 0
+        const span = cell.span != null ? Math.min(totalCols, Math.max(1, cell.span)) : Math.max(1, Math.floor(totalCols / (cells?.length ?? 1)))
         return (
         <div
           key={cell.id}
           className={` min-h-[48px] rounded 
             ${empty ? "" : "border border-dashed border-gray-300 bg-gray-50/50"}
             `}
+          style={{ gridColumn: `span ${span}` }}
           data-cell-id={cell.id}
         >
           {empty ? (

@@ -39,14 +39,19 @@ export interface ButtonBlockData {
   url?: string
 }
 
-/** Grid/layout block: N columns, each cell holds child blocks */
+/** Grid/layout block: N columns, each cell holds child blocks. gridColumns = total columns (e.g. 12); each cell.span = columns it spans. */
 export interface GridCell {
   id: string
+  /** Number of grid columns this cell spans (1 to gridColumns). Defaults to equal split. */
+  span?: number
   blocks: Block[]
 }
 
 export interface GridBlockData {
+  /** Number of cells (length of cells array). Kept for backward compat. */
   columns: number
+  /** Total grid columns (e.g. 12). Sum of cell spans should equal this. */
+  gridColumns?: number
   cells: GridCell[]
 }
 

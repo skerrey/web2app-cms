@@ -22,7 +22,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
@@ -358,11 +357,11 @@ private val CSS_COLOR_NAMES = mapOf(
     "pink" to 0xFFFFC0CB
 )
 
-private fun contentAlignToAlignment(contentAlign: String?): Alignment.Horizontal {
+private fun contentAlignToArrangement(contentAlign: String?): Arrangement.Horizontal {
     return when (contentAlign) {
-        "center" -> Alignment.CenterHorizontally
-        "right" -> Alignment.End
-        else -> Alignment.Start
+        "center" -> Arrangement.Center
+        "right" -> Arrangement.End
+        else -> Arrangement.Start
     }
 }
 
@@ -382,13 +381,13 @@ private fun BlockContent(
 ) {
     val bgColor = parseColor(block.styles?.backgroundColor)
     val contentModifier = if (bgColor != null) modifier.background(bgColor) else modifier
-    val contentAlign = contentAlignToAlignment(block.styles?.contentAlign)
+    val contentArrangement = contentAlignToArrangement(block.styles?.contentAlign)
     val textAlign = textAlignToTextAlign(block.styles?.textAlign)
 
     when (block.type) {
         "text" -> Row(
             modifier = contentModifier.fillMaxWidth(),
-            horizontalAlignment = contentAlign
+            horizontalArrangement = contentArrangement
         ) {
             Text(
                 text = block.text,
@@ -400,7 +399,7 @@ private fun BlockContent(
             val hero = block.data as? BlockData.Hero ?: return
             Row(
                 modifier = contentModifier.fillMaxWidth(),
-                horizontalAlignment = contentAlign
+                horizontalArrangement = contentArrangement
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
@@ -425,7 +424,7 @@ private fun BlockContent(
             } else null
             Row(
                 modifier = contentModifier.fillMaxWidth(),
-                horizontalAlignment = contentAlign
+                horizontalArrangement = contentArrangement
             ) {
                 Button(
                     onClick = {

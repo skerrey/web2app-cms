@@ -405,6 +405,44 @@ const App = () => {
     setIsDirty(true)
   }
 
+  const handleAdjustGridSpans = (blockId: string, cellIndex: number, newSpan: number) => {
+    if (!selectedPageId) return
+    setPages((prev) =>
+      prev.map((p) => {
+        if (p.id !== selectedPageId) return p
+        return {
+          ...p,
+          blocks: p.blocks.map((b) => {
+            if (b.id !== blockId || b.type !== "grid") return b
+            const data = b.data as GridBlockData
+            const cells = data.cells ?? []
+            if (cellIndex < 0 || cellIndex >= cells.length - 1) return b
+            const cellA = cells[cellIndex]
+            const cellB = cells[cellIndex + 1]
+            if (cellA == null || cellB == null) return b
+            const spanA = cellA.span ?? 1
+            const spanB = cellB.span ?? 1
+            const total = spanA + spanB
+            const clamped = Math.min(total - 1, Math.max(1, newSpan))
+            const nextSpan = total - clamped
+            return {
+              ...b,
+              data: {
+                ...data,
+                cells: cells.map((cell, i) => {
+                  if (i === cellIndex) return { ...cell, span: clamped }
+                  if (i === cellIndex + 1) return { ...cell, span: nextSpan }
+                  return cell
+                })
+              }
+            }
+          })
+        }
+      })
+    )
+    setIsDirty(true)
+  }
+
   const handleMoveNestedBlock = (
     blockId: string,
     fromGridId: string,
@@ -748,6 +786,7 @@ const App = () => {
                 onReorderBlocks={handleReorderBlocks}
                 onUpdateBlock={handleUpdateBlock}
                 onDeleteBlock={handleDeleteBlock}
+                onAdjustGridSpans={handleAdjustGridSpans}
                 disabled={loadStatus !== "loaded" || !selectedPageId}
               />
             </CanvasDropZone>
