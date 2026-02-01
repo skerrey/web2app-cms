@@ -38,6 +38,12 @@ data class GridCell(
     val blocks: List<Block>
 )
 
+/** Block styles from editor (backgroundColor, color, etc.). Values are CSS-like (hex or color names). */
+data class BlockStyles(
+    val backgroundColor: String? = null,
+    val color: String? = null
+)
+
 /**
  * Block with optional top-level `text` (legacy + backward compat) and optional `data` for hero/button/grid.
  * For text blocks: use `text` (from block.text or data.text).
@@ -46,5 +52,6 @@ data class GridCell(
 data class Block(
     val type: String,
     val text: String = "",
-    val data: BlockData? = null
+    val data: BlockData? = null,
+    val styles: BlockStyles? = null
 )

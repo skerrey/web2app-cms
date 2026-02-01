@@ -7,6 +7,7 @@ export interface BlockLibraryProps {
   onAddBlock: (block: Block) => void
   disabled?: boolean
   mode?: EditorMode
+  className?: string
 }
 
 const BLOCK_TYPES: Array<{ type: "text" | "hero" | "button"; label: string }> = [
@@ -49,9 +50,9 @@ const DraggableBlockButton = ({
   )
 }
 
-const BlockLibrary = ({ onAddBlock, disabled = false }: BlockLibraryProps) => {
+const BlockLibrary = ({ onAddBlock, disabled = false, className = "" }: BlockLibraryProps) => {
   return (
-    <div className="flex flex-col gap-2">
+    <div className={`flex flex-col gap-2 ${className}`}>
       <span className="text-sm font-medium">Block Library</span>
       <div className="flex flex-wrap gap-2">
         {BLOCK_TYPES.map(({ type, label }) => (

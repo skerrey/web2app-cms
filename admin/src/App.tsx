@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import {
   DndContext,
   closestCenter,
@@ -31,7 +31,12 @@ import BlockCanvas from "./components/BlockCanvas"
 import CanvasDropZone, { getCanvasDropId } from "./components/CanvasDropZone"
 import type { EditorMode } from "./types"
 import Inspector from "./components/Inspector/index"
-import PreviewPhone from "./components/PreviewPhone"
+import PreviewPhone, {
+  PREVIEW_DEVICE_OPTIONS,
+  type PreviewDeviceId
+} from "./components/PreviewPhone"
+import { useScrollTopShadow } from "./utils/useScrollTopShadow"
+import { MdSmartphone } from "react-icons/md";
 
 type LoadStatus = "idle" | "loading" | "loaded" | "error"
 
@@ -111,6 +116,31 @@ const App = () => {
   const [publishStatus, setPublishStatus] = useState<string | null>(null)
   const [editorMode, setEditorMode] = useState<EditorMode>("edit")
   const [reloadKey, setReloadKey] = useState(0)
+  const [previewDevice, setPreviewDevice] = useState<PreviewDeviceId>("google-pixel-6-pro")
+
+  const canvasScrollRef = useRef<HTMLDivElement | null>(null)
+  const layoutScrollRef = useRef<HTMLDivElement | null>(null)
+  const { showShadow: showCanvasShadow } = useScrollTopShadow(canvasScrollRef)
+  const { showShadow: showLayoutShadow } = useScrollTopShadow(layoutScrollRef)
+
+  useEffect(() => {
+    const onFocusIn = (e: FocusEvent) => {
+      if (editorMode !== "layout") return
+      const target = e.target as HTMLElement
+      if (!target) return
+      const isInput =
+        target.tagName === "INPUT" ||
+        target.tagName === "SELECT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+      if (!isInput) return
+      const inCanvas = canvasScrollRef.current?.contains(target)
+      const inInspector = layoutScrollRef.current?.contains(target)
+      if (inCanvas || inInspector) setEditorMode("edit")
+    }
+    document.addEventListener("focusin", onFocusIn)
+    return () => document.removeEventListener("focusin", onFocusIn)
+  }, [editorMode])
 
   useEffect(() => {
     return () => {
@@ -463,34 +493,38 @@ const App = () => {
 
   return (
     <main className="max-w-full mx-0 p-6">
-      <header>
-        <h1 className="m-0 mb-2 text-2xl font-semibold">Web2App CMS Admin</h1>
-        <p className="m-0 text-gray-600">Block-based visual editor. (Sidebar, canvas, inspector + preview coming next.)</p>
-      </header>
-      <section className="flex items-center gap-3 my-4">
-        <button
-          type="button"
-          className="px-3 py-2 border border-gray-400 bg-white cursor-pointer rounded disabled:opacity-60 disabled:cursor-not-allowed"
-          onClick={() => setReloadKey((k) => k + 1)}
-          disabled={loadStatus === "loading" || isPublishing}
-          aria-label="Reload content"
-        >
-          Reload
-        </button>
-        <button
-          type="button"
-          id="publishButton"
-          className="px-3 py-2 border border-gray-400 bg-white cursor-pointer rounded disabled:opacity-60 disabled:cursor-not-allowed"
-          disabled={!isDirty || isPublishing}
-          onClick={handlePublish}
-          aria-label="Publish changes"
-        >
-          {isPublishing ? "Publishing…" : "Publish"}
-        </button>
-        <span id="status" className="text-sm text-gray-600" aria-live="polite">
-          {statusMessage}
-        </span>
-      </section>
+      <div className="flex justify-between items-end">
+        <header>
+          <h1 className="m-0 mb-2 text-2xl font-semibold">Web2App CMS Admin</h1>
+          <p className="m-0 text-gray-600">Block-based visual editor. (Sidebar, canvas, inspector + preview coming next.)</p>
+        </header>
+        <div className="">
+          <div className="flex justify-end gap-3 mb-1">
+            <button
+              type="button"
+              className="px-3 py-2 border border-gray-400 bg-white cursor-pointer rounded disabled:opacity-60 disabled:cursor-not-allowed"
+              onClick={() => setReloadKey((k) => k + 1)}
+              disabled={loadStatus === "loading" || isPublishing}
+              aria-label="Reload content"
+            >
+              Reload
+            </button>
+            <button
+              type="button"
+              id="publishButton"
+              className="px-3 py-2 border border-gray-400 bg-white cursor-pointer rounded disabled:opacity-60 disabled:cursor-not-allowed"
+              disabled={!isDirty || isPublishing}
+              onClick={handlePublish}
+              aria-label="Publish changes"
+            >
+              {isPublishing ? "Publishing…" : "Publish"}
+            </button>
+          </div>
+          <div id="status" className="text-sm text-gray-600" aria-live="polite">
+            {statusMessage}
+          </div>
+        </div>
+      </div>
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -521,12 +555,16 @@ const App = () => {
               disabled={loadStatus !== "loaded"}
             />
           </div>
-          <div className="bg-white border border-gray-200 p-4 rounded min-h-0 overflow-y-auto">
+          <div 
+            ref={canvasScrollRef}
+            className="bg-white border border-gray-200 rounded min-h-0 overflow-y-auto"
+          >
             <CanvasDropZone isLayoutMode={editorMode === "layout"}>
               <BlockLibrary
                 onAddBlock={handleAddBlock}
                 disabled={loadStatus !== "loaded" || !selectedPageId}
                 mode={editorMode}
+                className={`sticky top-0 z-10 bg-white w-full h-full p-4 border-b border-gray-200 ${showCanvasShadow ? "shadow-lg" : ""}`}
               />
               <BlockCanvas
                 blocks={currentBlocks}
@@ -540,7 +578,10 @@ const App = () => {
               />
             </CanvasDropZone>
           </div>
-        <div className="bg-white border border-gray-200 p-4 rounded min-h-0 overflow-y-auto min-w-0">
+        <div 
+          ref={layoutScrollRef}
+          className="bg-white border border-gray-200 rounded min-h-0 overflow-y-auto min-w-0"
+        >
           <Inspector
             key={selectedBlockId ?? "no-block"}
             block={selectedBlock}
@@ -550,12 +591,36 @@ const App = () => {
             pages={pages}
             disabled={loadStatus !== "loaded" || !selectedPageId}
             onAddLayoutBlock={handleAddLayoutBlock}
+            className={`sticky top-0 z-10 bg-white w-full`}
+            titleClassName={`p-4 w ${showLayoutShadow ? "shadow-lg" : ""}`}
           />
         </div>
-        <div className="bg-white border border-gray-200 p-4 rounded min-h-0 overflow-y-auto min-w-0 flex flex-col items-start">
+        <div
+          className="bg-white border border-gray-200 rounded min-h-0 overflow-y-auto overflow-x-hidden min-w-0 flex flex-col p-2"
+          style={{ containerType: "inline-size" }}
+        >
+          <label className="sr-only" htmlFor="preview-device-select">
+            Preview device
+          </label>
+          <div className="flex gap-[5px]">
+            <MdSmartphone size={20} className="text-blue-600 mt-[9px]" />
+            <select
+              id="preview-device-select"
+              value={previewDevice}
+              onChange={(e) => setPreviewDevice(e.target.value as PreviewDeviceId)}
+              className="mb-3 w-full max-w-[240px] rounded border border-gray-300 bg-white p-2 text-sm text-gray-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            >
+              {PREVIEW_DEVICE_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
           <PreviewPhone
             pageTitle={currentPage?.title}
             blocks={currentBlocks}
+            device={previewDevice}
           />
         </div>
         </section>

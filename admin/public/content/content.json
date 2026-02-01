@@ -3,23 +3,71 @@
     {
       "id": "home",
       "title": "Home",
+      "route": "/",
       "blocks": [
         {
+          "id": "block_flt1gddba",
           "type": "text",
-          "text": "TEST! TEST!"
+          "data": {
+            "text": "NEW TEST"
+          },
+          "styles": {},
+          "text": "NEW TEST"
         },
         {
+          "id": "block_ueufqill8",
           "type": "text",
+          "data": {
+            "text": "Check the latest updates in the News section."
+          },
+          "styles": {},
           "text": "Check the latest updates in the News section."
+        },
+        {
+          "id": "block_vosyjs76m",
+          "type": "grid",
+          "data": {
+            "columns": 2,
+            "cells": [
+              {
+                "id": "cell_c1qk660o1",
+                "blocks": []
+              },
+              {
+                "id": "cell_79mslz3e0",
+                "blocks": [
+                  {
+                    "id": "block_f7zanrjkm",
+                    "type": "button",
+                    "data": {
+                      "label": "About Page",
+                      "url": "/about"
+                    },
+                    "styles": {
+                      "width": "fit-content",
+                      "backgroundColor": "skyblue"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "styles": {}
         }
       ]
     },
     {
       "id": "about",
       "title": "About",
+      "route": "/about",
       "blocks": [
         {
+          "id": "block_zwze4fbui",
           "type": "text",
+          "data": {
+            "text": "This app helps you stay informed."
+          },
+          "styles": {},
           "text": "This app helps you stay informed."
         }
       ]

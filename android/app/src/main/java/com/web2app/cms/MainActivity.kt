@@ -6,6 +6,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,15 +16,18 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.web2app.cms.model.Block
 import com.web2app.cms.model.BlockData
+import com.web2app.cms.model.BlockStyles
 import com.web2app.cms.model.Content
 import com.web2app.cms.model.GridCell
 import com.web2app.cms.model.Manifest
@@ -163,7 +167,15 @@ class MainActivity : ComponentActivity() {
                             }
                         }
 
-                        return Block(type = type, text = text, data = data)
+                        val stylesObj = blockObject["styles"]?.jsonObject
+                        val styles = if (stylesObj != null) {
+                            BlockStyles(
+                                backgroundColor = stylesObj["backgroundColor"]?.jsonPrimitive?.contentOrNull,
+                                color = stylesObj["color"]?.jsonPrimitive?.contentOrNull
+                            )
+                        } else null
+
+                        return Block(type = type, text = text, data = data, styles = styles)
                     }
 
                     val parseContent = { body: String ->
@@ -240,13 +252,21 @@ class MainActivity : ComponentActivity() {
                         return@LaunchedEffect
                     }
 
-                    uiState = UiState.Loaded(ScreenState(decodedManifest, firstPage))
+                    uiState = UiState.Loaded(
+                        ScreenState(
+                            manifest = decodedManifest,
+                            content = content,
+                            currentPageId = firstPageId
+                        )
+                    )
                 } catch (e: Exception) {
                     uiState = UiState.Error("Error: ${e::class.simpleName}")
                 }
             }
 
             Web2appcmsTheme {
+                var currentPageId by remember { mutableStateOf<String?>(null) }
+
                 Scaffold(modifier = Modifier.fillMaxSize()) { padding ->
                     Column(modifier = Modifier.padding(padding)) {
                         when (val state = uiState) {
@@ -258,6 +278,10 @@ class MainActivity : ComponentActivity() {
                             }
                             is UiState.Loaded -> {
                                 val context = LocalContext.current
+                                val page = state.data.content.pages.find { it.id == (currentPageId ?: state.data.currentPageId) }
+                                    ?: state.data.content.pages.first()
+                                val effectivePageId = currentPageId ?: state.data.currentPageId
+
                                 Column(
                                     modifier = Modifier
                                         .fillMaxSize()
@@ -266,15 +290,26 @@ class MainActivity : ComponentActivity() {
                                     verticalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
                                     Text(
-                                        text = state.data.page.title,
+                                        text = page.title,
                                         style = MaterialTheme.typography.headlineMedium
                                     )
-                                    state.data.page.blocks.forEach { block ->
-                                        BlockContent(block = block, onOpenUrl = { url ->
-                                            try {
-                                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-                                            } catch (_: Exception) {}
-                                        })
+                                    page.blocks.forEach { block ->
+                                        BlockContent(
+                                            block = block,
+                                            onNavigate = { url ->
+                                                val pageId = url.trim().removePrefix("/").takeIf { it.isNotBlank() }
+                                                val targetPage = state.data.content.pages.find { it.id == pageId }
+                                                if (targetPage != null) {
+                                                    currentPageId = pageId
+                                                } else {
+                                                    val fullUrl = if (url.startsWith("http://") || url.startsWith("https://")) url
+                                                        else "https://$url"
+                                                    try {
+                                                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(fullUrl)))
+                                                    } catch (_: Exception) {}
+                                                }
+                                            }
+                                        )
                                     }
                                 }
                             }
@@ -286,21 +321,57 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+/** Parse CSS-like color (hex #RGB/#RRGGBB/#AARRGGBB or common color names) to Compose Color, or null if invalid. */
+private fun parseColor(value: String?): Color? {
+    if (value.isNullOrBlank()) return null
+    val s = value.trim()
+    if (s.startsWith("#")) {
+        val hex = s.removePrefix("#")
+        val long = when (hex.length) {
+            3 -> hex.map { "$it$it" }.joinToString("").let { "FF$it" }.toLongOrNull(16)
+            6 -> "FF$hex".toLongOrNull(16)
+            8 -> hex.toLongOrNull(16)
+            else -> null
+        } ?: return null
+        return Color(long)
+    }
+    return CSS_COLOR_NAMES[s.lowercase()]?.let { Color(it) }
+}
+
+private val CSS_COLOR_NAMES = mapOf(
+    "skyblue" to 0xFF87CEEB,
+    "lightblue" to 0xFFADD8E6,
+    "blue" to 0xFF0000FF,
+    "red" to 0xFFFF0000,
+    "green" to 0xFF008000,
+    "white" to 0xFFFFFFFF,
+    "black" to 0xFF000000,
+    "gray" to 0xFF808080,
+    "grey" to 0xFF808080,
+    "orange" to 0xFFFFA500,
+    "yellow" to 0xFFFFFF00,
+    "purple" to 0xFF800080,
+    "pink" to 0xFFFFC0CB
+)
+
 @Composable
 private fun BlockContent(
     block: Block,
-    onOpenUrl: (String) -> Unit,
+    onNavigate: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val bgColor = parseColor(block.styles?.backgroundColor)
+    val contentModifier = if (bgColor != null) modifier.background(bgColor) else modifier
+
     when (block.type) {
         "text" -> Text(
             text = block.text,
             style = MaterialTheme.typography.bodyLarge,
-            modifier = modifier
+            modifier = contentModifier
         )
         "hero" -> {
             val hero = block.data as? BlockData.Hero ?: return
-            Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(modifier = contentModifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(text = hero.title, style = MaterialTheme.typography.headlineSmall)
                 if (hero.subtitle.isNotBlank()) {
                     Text(text = hero.subtitle, style = MaterialTheme.typography.bodyMedium)
@@ -309,13 +380,17 @@ private fun BlockContent(
         }
         "button" -> {
             val btn = block.data as? BlockData.Button ?: return
+            val buttonColors = if (bgColor != null) {
+                ButtonDefaults.buttonColors(containerColor = bgColor)
+            } else null
             Button(
                 onClick = {
                     val url = btn.url?.takeIf { it.isNotBlank() }
-                    if (url != null) onOpenUrl(url)
+                    if (url != null) onNavigate(url)
                 },
                 enabled = !btn.url.isNullOrBlank(),
-                modifier = modifier
+                modifier = modifier,
+                colors = buttonColors ?: ButtonDefaults.buttonColors()
             ) {
                 Text(text = btn.label.ifBlank { "Button" })
             }
@@ -323,7 +398,7 @@ private fun BlockContent(
         "grid" -> {
             val grid = block.data as? BlockData.Grid ?: return
             Row(
-                modifier = modifier.fillMaxWidth(),
+                modifier = contentModifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 grid.cells.take(grid.columns).forEach { cell ->
@@ -332,7 +407,7 @@ private fun BlockContent(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         cell.blocks.forEach { nestedBlock ->
-                            BlockContent(block = nestedBlock, onOpenUrl = onOpenUrl)
+                            BlockContent(block = nestedBlock, onNavigate = onNavigate)
                         }
                     }
                 }
@@ -341,14 +416,15 @@ private fun BlockContent(
         else -> Text(
             text = block.text.ifBlank { "Unknown block type: ${block.type}" },
             style = MaterialTheme.typography.bodyMedium,
-            modifier = modifier
+            modifier = contentModifier
         )
     }
 }
 
 data class ScreenState(
     val manifest: Manifest,
-    val page: Page
+    val content: Content,
+    val currentPageId: String
 )
 
 data class FetchResult(
