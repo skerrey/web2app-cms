@@ -4,8 +4,13 @@ import { HiOutlineTrash } from "react-icons/hi2"
 import Modal from "../Modal"
 
 const TEXT_ALIGN_OPTIONS: Array<{ value: BlockStyles["textAlign"]; label: string }> = [
-  { value: undefined, label: "(default)" },
-  { value: "left", label: "Left" },
+  { value: "left", label: "Left (default)" },
+  { value: "center", label: "Center" },
+  { value: "right", label: "Right" }
+]
+
+const CONTENT_ALIGN_OPTIONS: Array<{ value: BlockStyles["contentAlign"]; label: string }> = [
+  { value: "left", label: "Left (default)" },
   { value: "center", label: "Center" },
   { value: "right", label: "Right" }
 ]
@@ -15,6 +20,7 @@ const STYLE_CONFIG: Array<{ key: keyof BlockStyles; label: string; placeholder?:
   { key: "padding", label: "Padding", placeholder: "e.g. 16px" },
   { key: "color", label: "Color", placeholder: "e.g. #333" },
   { key: "textAlign", label: "Text align", options: TEXT_ALIGN_OPTIONS.map((o) => ({ value: o.value ?? "", label: o.label })) },
+  { key: "contentAlign", label: "Content align", options: CONTENT_ALIGN_OPTIONS.map((o) => ({ value: o.value ?? "", label: o.label })) },
   { key: "fontSize", label: "Font size", placeholder: "e.g. 16px" },
   { key: "backgroundColor", label: "Background color", placeholder: "e.g. #f5f5f5 or blue" }
 ]
@@ -210,8 +216,12 @@ const EditInspector = ({ block, onUpdateBlock, onDeleteBlock, pages = [], disabl
             <StyleInputRow
               key={config.key}
               config={config}
-              value={styleValue(config.key)}
-              onChange={(value) => updateStyles({ [config.key]: value } as BlockStyles)}
+              value={
+                config.key === "textAlign" || config.key === "contentAlign"
+                  ? (styleValue(config.key) || "left")
+                  : styleValue(config.key)
+              }
+              onChange={(value) => updateStyles({ [config.key]: value || undefined } as BlockStyles)}
               disabled={disabled}
             />
           ))}

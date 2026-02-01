@@ -38,10 +38,12 @@ data class GridCell(
     val blocks: List<Block>
 )
 
-/** Block styles from editor (backgroundColor, color, etc.). Values are CSS-like (hex or color names). */
+/** Block styles from editor (backgroundColor, color, textAlign, contentAlign, etc.). */
 data class BlockStyles(
     val backgroundColor: String? = null,
-    val color: String? = null
+    val color: String? = null,
+    val textAlign: String? = null,
+    val contentAlign: String? = null
 )
 
 /**

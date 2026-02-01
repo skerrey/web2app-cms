@@ -60,6 +60,7 @@ export interface BlockStyles {
   padding?: string
   color?: string
   textAlign?: "left" | "center" | "right"
+  contentAlign?: "left" | "center" | "right"
   fontSize?: string
   backgroundColor?: string
   [key: string]: string | undefined

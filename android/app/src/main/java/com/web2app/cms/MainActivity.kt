@@ -22,8 +22,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.web2app.cms.model.Block
 import com.web2app.cms.model.BlockData
@@ -171,7 +173,9 @@ class MainActivity : ComponentActivity() {
                         val styles = if (stylesObj != null) {
                             BlockStyles(
                                 backgroundColor = stylesObj["backgroundColor"]?.jsonPrimitive?.contentOrNull,
-                                color = stylesObj["color"]?.jsonPrimitive?.contentOrNull
+                                color = stylesObj["color"]?.jsonPrimitive?.contentOrNull,
+                                textAlign = stylesObj["textAlign"]?.jsonPrimitive?.contentOrNull,
+                                contentAlign = stylesObj["contentAlign"]?.jsonPrimitive?.contentOrNull
                             )
                         } else null
 
@@ -354,6 +358,22 @@ private val CSS_COLOR_NAMES = mapOf(
     "pink" to 0xFFFFC0CB
 )
 
+private fun contentAlignToAlignment(contentAlign: String?): Alignment.Horizontal {
+    return when (contentAlign) {
+        "center" -> Alignment.CenterHorizontally
+        "right" -> Alignment.End
+        else -> Alignment.Start
+    }
+}
+
+private fun textAlignToTextAlign(textAlign: String?): TextAlign {
+    return when (textAlign) {
+        "center" -> TextAlign.Center
+        "right" -> TextAlign.End
+        else -> TextAlign.Start
+    }
+}
+
 @Composable
 private fun BlockContent(
     block: Block,
@@ -362,19 +382,39 @@ private fun BlockContent(
 ) {
     val bgColor = parseColor(block.styles?.backgroundColor)
     val contentModifier = if (bgColor != null) modifier.background(bgColor) else modifier
+    val contentAlign = contentAlignToAlignment(block.styles?.contentAlign)
+    val textAlign = textAlignToTextAlign(block.styles?.textAlign)
 
     when (block.type) {
-        "text" -> Text(
-            text = block.text,
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = contentModifier
-        )
+        "text" -> Row(
+            modifier = contentModifier.fillMaxWidth(),
+            horizontalAlignment = contentAlign
+        ) {
+            Text(
+                text = block.text,
+                style = MaterialTheme.typography.bodyLarge,
+                textAlign = textAlign
+            )
+        }
         "hero" -> {
             val hero = block.data as? BlockData.Hero ?: return
-            Column(modifier = contentModifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(text = hero.title, style = MaterialTheme.typography.headlineSmall)
-                if (hero.subtitle.isNotBlank()) {
-                    Text(text = hero.subtitle, style = MaterialTheme.typography.bodyMedium)
+            Row(
+                modifier = contentModifier.fillMaxWidth(),
+                horizontalAlignment = contentAlign
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        text = hero.title,
+                        style = MaterialTheme.typography.headlineSmall,
+                        textAlign = textAlign
+                    )
+                    if (hero.subtitle.isNotBlank()) {
+                        Text(
+                            text = hero.subtitle,
+                            style = MaterialTheme.typography.bodyMedium,
+                            textAlign = textAlign
+                        )
+                    }
                 }
             }
         }
@@ -383,16 +423,21 @@ private fun BlockContent(
             val buttonColors = if (bgColor != null) {
                 ButtonDefaults.buttonColors(containerColor = bgColor)
             } else null
-            Button(
-                onClick = {
-                    val url = btn.url?.takeIf { it.isNotBlank() }
-                    if (url != null) onNavigate(url)
-                },
-                enabled = !btn.url.isNullOrBlank(),
-                modifier = modifier,
-                colors = buttonColors ?: ButtonDefaults.buttonColors()
+            Row(
+                modifier = contentModifier.fillMaxWidth(),
+                horizontalAlignment = contentAlign
             ) {
-                Text(text = btn.label.ifBlank { "Button" })
+                Button(
+                    onClick = {
+                        val url = btn.url?.takeIf { it.isNotBlank() }
+                        if (url != null) onNavigate(url)
+                    },
+                    enabled = !btn.url.isNullOrBlank(),
+                    modifier = modifier,
+                    colors = buttonColors ?: ButtonDefaults.buttonColors()
+                ) {
+                    Text(text = btn.label.ifBlank { "Button" })
+                }
             }
         }
         "grid" -> {
