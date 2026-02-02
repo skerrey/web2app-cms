@@ -33,6 +33,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -48,10 +49,10 @@ import com.web2app.cms.model.Manifest
 import com.web2app.cms.model.Page
 import com.web2app.cms.ui.theme.Web2appcmsTheme
 import androidx.compose.runtime.*
-import androidx.compose.runtime.LaunchedEffect
 import okhttp3.CacheControl
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -150,7 +151,7 @@ class MainActivity : ComponentActivity() {
                             )
                         )
                     }
-                    fun parseBlock(blockElement: kotlinx.serialization.json.JsonElement): Block? {
+                    fun parseBlock(blockElement: kotlinx.serialization.json.JsonElement): Block {
                         val blockObject = blockElement.jsonObject
                         val type = blockObject["type"]?.jsonPrimitive?.contentOrNull ?: "text"
                         val topLevelText = blockObject["text"]?.jsonPrimitive?.contentOrNull ?: ""
@@ -179,14 +180,14 @@ class MainActivity : ComponentActivity() {
                                 val cells = cellsArray.mapNotNull { cellElement ->
                                     val cellObj = cellElement.jsonObject
                                     val cellId = cellObj["id"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
-                                    val nestedBlocks = cellObj["blocks"]?.jsonArray?.mapNotNull { parseBlock(it) } ?: emptyList()
-                                    com.web2app.cms.model.GridCell(id = cellId, blocks = nestedBlocks)
+                                    val nestedBlocks = cellObj["blocks"]?.jsonArray?.map { parseBlock(it) } ?: emptyList()
+                                    GridCell(id = cellId, blocks = nestedBlocks)
                                 }
                                 "" to BlockData.Grid(columns = columns, cells = cells)
                             }
                             else -> {
                                 val textFromData = dataObj?.get("text")?.jsonPrimitive?.contentOrNull
-                                val textValue = if (topLevelText.isNotBlank()) topLevelText else (textFromData ?: "")
+                                val textValue = topLevelText.ifBlank { textFromData ?: "" }
                                 textValue to null
                             }
                         }
@@ -222,7 +223,7 @@ class MainActivity : ComponentActivity() {
                         val root = json.parseToJsonElement(body).jsonObject
                         val pages = root["pages"]?.jsonArray?.mapNotNull { pageElement ->
                             val pageObject = pageElement.jsonObject
-                            val blocks = pageObject["blocks"]?.jsonArray?.mapNotNull { parseBlock(it) } ?: emptyList()
+                            val blocks = pageObject["blocks"]?.jsonArray?.map { parseBlock(it) } ?: emptyList()
                             val id = pageObject["id"]?.jsonPrimitive?.contentOrNull ?: ""
                             val title = pageObject["title"]?.jsonPrimitive?.contentOrNull ?: ""
                             val titleStyle = pageObject["titleStyle"]?.jsonPrimitive?.contentOrNull
@@ -231,21 +232,19 @@ class MainActivity : ComponentActivity() {
                         Content(pages = pages)
                     }
                     val manifestResult = fetchText("${BuildConfig.BASE_URL}/content/manifest.json")
-                    if (manifestResult.body == null) return LoadResult.Error("Empty manifest response")
                     if (manifestResult.statusCode !in 200..299) return LoadResult.Error("Manifest request failed (${manifestResult.statusCode})")
-                    val manifestParse = runCatching { parseManifest(manifestResult.body!!) }
+                    val manifestBody = manifestResult.body ?: return LoadResult.Error("Empty manifest response")
+                    val manifestParse = runCatching { parseManifest(manifestBody) }
                     if (manifestParse.isFailure) return LoadResult.Error("Manifest parse error: ${manifestParse.exceptionOrNull()?.message}")
                     val decodedManifest = manifestParse.getOrThrow()
-                    val manifestError = validateManifest(decodedManifest)
-                    if (manifestError != null) return LoadResult.Error(manifestError)
+                    validateManifest(decodedManifest)?.let { return LoadResult.Error(it) }
                     val contentResult = fetchText("${BuildConfig.BASE_URL}/content/content.json")
-                    if (contentResult.body == null) return LoadResult.Error("Empty content response")
                     if (contentResult.statusCode !in 200..299) return LoadResult.Error("Content request failed (${contentResult.statusCode})")
-                    val contentParse = runCatching { parseContent(contentResult.body!!) }
+                    val contentBody = contentResult.body ?: return LoadResult.Error("Empty content response")
+                    val contentParse = runCatching { parseContent(contentBody) }
                     if (contentParse.isFailure) return LoadResult.Error("Content parse error: ${contentParse.exceptionOrNull()?.message}")
                     val content = contentParse.getOrThrow()
-                    val contentError = validateContent(content)
-                    if (contentError != null) return LoadResult.Error(contentError)
+                    validateContent(content)?.let { return LoadResult.Error(it) }
                     val firstPageId = decodedManifest.pagesOrder.firstOrNull()
                     if (firstPageId == null) return LoadResult.Error("No pagesOrder entries")
                     if (content.pages.none { it.id == firstPageId }) return LoadResult.Error("Page not found: $firstPageId")
@@ -279,67 +278,16 @@ class MainActivity : ComponentActivity() {
                                 Text(text = state.message)
                             }
                             is UiState.Loaded -> {
-                                val context = LocalContext.current
-                                val page = state.data.content.pages.find { it.id == (currentPageId ?: state.data.currentPageId) }
-                                    ?: state.data.content.pages.first()
-                                val pullRefreshState = rememberPullToRefreshState()
-                                val onRefresh: () -> Unit = {
-                                    isRefreshing = true
-                                    scope.launch {
-                                        when (val r = loadScreenState()) {
-                                            is LoadResult.Success -> {
-                                                val previousPageId = currentPageId ?: state.data.currentPageId
-                                                val keptPageId = if (r.state.content.pages.any { it.id == previousPageId }) previousPageId else r.state.currentPageId
-                                                uiState = UiState.Loaded(
-                                                    r.state.copy(currentPageId = keptPageId)
-                                                )
-                                            }
-                                            is LoadResult.Error -> uiState = UiState.Error(r.message)
-                                        }
-                                        isRefreshing = false
-                                    }
-                                    Unit
-                                }
-                                PullToRefreshBox(
-                                    state = pullRefreshState,
+                                PullToRefreshLoadedContent(
+                                    state = state,
+                                    currentPageId = currentPageId,
+                                    onCurrentPageIdChange = { currentPageId = it },
                                     isRefreshing = isRefreshing,
-                                    onRefresh = onRefresh,
-                                    modifier = Modifier.fillMaxSize(),
-                                    indicator = {
-                                        PullToRefreshDefaults.Indicator(
-                                            state = pullRefreshState,
-                                            isRefreshing = isRefreshing,
-                                            modifier = Modifier.align(Alignment.TopCenter)
-                                        )
-                                    }
-                                ) {
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .verticalScroll(rememberScrollState())
-                                            .padding(16.dp),
-                                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                                    ) {
-                                        page.blocks.forEach { block ->
-                                            BlockContent(
-                                                block = block,
-                                                onNavigate = { url ->
-                                                    val pageId = url.trim().removePrefix("/").takeIf { it.isNotBlank() }
-                                                    val targetPage = state.data.content.pages.find { it.id == pageId }
-                                                    if (targetPage != null) {
-                                                        currentPageId = pageId
-                                                    } else {
-                                                        val fullUrl = if (url.startsWith("http://") || url.startsWith("https://")) url
-                                                            else "https://$url"
-                                                        try {
-                                                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(fullUrl)))
-                                                        } catch (_: Exception) {}
-                                                    }
-                                                }
-                                            )
-                                        }
-                                    }
-                                }
+                                    onRefreshingChange = { isRefreshing = it },
+                                    loadScreenState = loadScreenState,
+                                    onUiStateChange = { uiState = it },
+                                    scope = scope
+                                )
                             }
                         }
                     }
@@ -349,15 +297,87 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PullToRefreshLoadedContent(
+    state: UiState.Loaded,
+    currentPageId: String?,
+    onCurrentPageIdChange: (String?) -> Unit,
+    isRefreshing: Boolean,
+    onRefreshingChange: (Boolean) -> Unit,
+    loadScreenState: suspend () -> LoadResult,
+    onUiStateChange: (UiState) -> Unit,
+    scope: CoroutineScope
+) {
+    val context = LocalContext.current
+    val page = state.data.content.pages.find { it.id == (currentPageId ?: state.data.currentPageId) }
+        ?: state.data.content.pages.first()
+    val pullRefreshState = rememberPullToRefreshState()
+    val onRefresh: () -> Unit = {
+        onRefreshingChange(true)
+        scope.launch {
+            when (val r = loadScreenState()) {
+                is LoadResult.Success -> {
+                    val previousPageId = currentPageId ?: state.data.currentPageId
+                    val keptPageId = if (r.state.content.pages.any { it.id == previousPageId }) previousPageId else r.state.currentPageId
+                    onUiStateChange(UiState.Loaded(r.state.copy(currentPageId = keptPageId)))
+                }
+                is LoadResult.Error -> onUiStateChange(UiState.Error(r.message))
+            }
+            onRefreshingChange(false)
+        }
+    }
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = onRefresh,
+        modifier = Modifier.fillMaxSize(),
+        state = pullRefreshState,
+        indicator = {
+            PullToRefreshDefaults.Indicator(
+                state = pullRefreshState,
+                isRefreshing = isRefreshing,
+                modifier = Modifier.align(Alignment.TopCenter)
+            )
+        }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            page.blocks.forEach { block ->
+                BlockContent(
+                    block = block,
+                    onNavigate = { url ->
+                        val pageId = url.trim().removePrefix("/").takeIf { it.isNotBlank() }
+                        val targetPage = state.data.content.pages.find { it.id == pageId }
+                        if (targetPage != null) {
+                            onCurrentPageIdChange(pageId)
+                        } else {
+                            val fullUrl = if (url.startsWith("http://") || url.startsWith("https://")) url
+                                else "https://$url"
+                            try {
+                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(fullUrl)))
+                            } catch (_: Exception) {}
+                        }
+                    }
+                )
+            }
+        }
+    }
+}
+
 /** Parse "16px" or "8" to Dp, or null. */
-private fun parseDp(value: String?): androidx.compose.ui.unit.Dp? {
+private fun parseDp(value: String?): Dp? {
     if (value.isNullOrBlank()) return null
     val num = value.trim().replace(Regex("[^0-9.]"), "").toFloatOrNull() ?: return null
     return num.dp
 }
 
 /** Build PaddingValues from block styles (padding or margin). All-side value used when per-side not set. */
-private fun paddingValuesFromStyles(styles: com.web2app.cms.model.BlockStyles?, isMargin: Boolean): PaddingValues? {
+private fun paddingValuesFromStyles(styles: BlockStyles?, isMargin: Boolean): PaddingValues? {
     if (styles == null) return null
     val all = if (isMargin) styles.margin else styles.padding
     val top = parseDp(if (isMargin) styles.marginTop else styles.paddingTop) ?: parseDp(all) ?: 0.dp
