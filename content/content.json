@@ -132,6 +132,15 @@
             "bottom": "0",
             "right": "0"
           }
+        },
+        {
+          "id": "block_6yhr0p89x",
+          "type": "hero",
+          "data": {
+            "title": "",
+            "subtitle": ""
+          },
+          "styles": {}
         }
       ]
     },
@@ -199,6 +208,42 @@
                 ]
               }
             ]
+          },
+          "styles": {}
+        }
+      ]
+    },
+    {
+      "id": "new-page",
+      "title": "New Page",
+      "route": "/new-page",
+      "blocks": [
+        {
+          "id": "block_2akyn96go",
+          "type": "text",
+          "data": {
+            "text": "This is an example!"
+          },
+          "styles": {},
+          "text": "This is an example!"
+        },
+        {
+          "id": "block_fhkb4am29",
+          "type": "button",
+          "data": {
+            "label": "Test",
+            "url": "/about"
+          },
+          "styles": {
+            "width": "fit-content"
+          }
+        },
+        {
+          "id": "block_0id8sh0mh",
+          "type": "image",
+          "data": {
+            "imageUrl": "",
+            "alt": ""
           },
           "styles": {}
         }

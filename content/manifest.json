@@ -7,7 +7,8 @@
   },
   "pagesOrder": [
     "home",
-    "about"
+    "about",
+    "new-page"
   ],
   "featureFlags": {
     "showWelcomeBanner": true,
