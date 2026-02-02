@@ -37,15 +37,17 @@ const publicContentDir = path.join(publicDir, "content")
 fs.mkdirSync(publicContentDir, { recursive: true })
 copyRecursive(contentDir, publicContentDir)
 
-const apkPath = path.join(rootDir, "android", "app", "build", "outputs", "apk", "debug", "app-debug.apk")
-if (fs.existsSync(apkPath)) {
+const apkFromAndroid = path.join(rootDir, "android", "app", "build", "outputs", "apk", "debug", "app-debug.apk")
+const apkFromContent = path.join(contentDir, "app-debug.apk")
+const apkPath = fs.existsSync(apkFromAndroid) ? apkFromAndroid : (fs.existsSync(apkFromContent) ? apkFromContent : null)
+if (apkPath) {
   console.log("Copying APK to public/app-debug.apk...")
   fs.copyFileSync(apkPath, path.join(publicDir, "app-debug.apk"))
   const adminPublicDir = path.join(adminDir, "public")
   fs.mkdirSync(adminPublicDir, { recursive: true })
   fs.copyFileSync(apkPath, path.join(adminPublicDir, "app-debug.apk"))
 } else {
-  console.log("APK not found (android/app/build/outputs/apk/debug/app-debug.apk); skip copying.")
+  console.log("APK not found. For production: put app-debug.apk in content/ and commit, or build Android locally first. Skip copying.")
 }
 
 console.log("Build complete!")
