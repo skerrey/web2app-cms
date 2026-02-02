@@ -250,17 +250,22 @@ const EditInspector = ({ block, onUpdateBlock, onDeleteBlock, pages = [], disabl
 
   const getRelevantStyles = (): typeof STYLE_CONFIG => {
     const type = block.type
+    const textStyleKeys: (keyof BlockStyles)[] = ["width", "height", "color", "textAlign", "fontSize", "backgroundColor"]
+    const heroButtonStyleKeys: (keyof BlockStyles)[] = ["width", "height", "color", "textAlign", "contentAlign", "fontSize", "backgroundColor"]
+    const imageStyleKeys: (keyof BlockStyles)[] = ["width", "height", "contentAlign", "backgroundColor", "borderRadius", "objectFit"]
+    const gridStyleKeys: (keyof BlockStyles)[] = ["width", "backgroundColor"]
+    
     if (type === "text") {
-      return STYLE_CONFIG.filter((s) => ["width", "height", "color", "textAlign", "fontSize", "backgroundColor"].includes(s.key))
+      return STYLE_CONFIG.filter((s) => (textStyleKeys as string[]).includes(s.key as string))
     }
     if (type === "hero" || type === "button") {
-      return STYLE_CONFIG.filter((s) => ["width", "height", "color", "textAlign", "contentAlign", "fontSize", "backgroundColor"].includes(s.key))
+      return STYLE_CONFIG.filter((s) => (heroButtonStyleKeys as string[]).includes(s.key as string))
     }
     if (type === "image") {
-      return STYLE_CONFIG.filter((s) => ["width", "height", "contentAlign", "backgroundColor", "borderRadius", "objectFit"].includes(s.key))
+      return STYLE_CONFIG.filter((s) => (imageStyleKeys as string[]).includes(s.key as string))
     }
     if (type === "grid") {
-      return STYLE_CONFIG.filter((s) => ["width", "backgroundColor"].includes(s.key))
+      return STYLE_CONFIG.filter((s) => (gridStyleKeys as string[]).includes(s.key as string))
     }
     return STYLE_CONFIG
   }
