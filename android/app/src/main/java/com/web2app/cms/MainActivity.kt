@@ -3,6 +3,7 @@ package com.web2app.cms
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.util.Base64
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -369,6 +370,18 @@ private fun PullToRefreshLoadedContent(
     }
 }
 
+/** Decode data URL (data:image/...;base64,...) to ByteArray for Coil; return null if not a data URL or decode fails. */
+private fun decodeDataUrlToBytes(dataUrl: String?): ByteArray? {
+    if (dataUrl.isNullOrBlank() || !dataUrl.startsWith("data:")) return null
+    val base64Part = dataUrl.substringAfter("base64,", "").replace("\\s".toRegex(), "")
+    if (base64Part.isEmpty()) return null
+    return try {
+        Base64.decode(base64Part, Base64.DEFAULT)
+    } catch (_: Exception) {
+        null
+    }
+}
+
 /** Parse "16px" or "8" to Dp, or null. */
 private fun parseDp(value: String?): Dp? {
     if (value.isNullOrBlank()) return null
@@ -512,6 +525,7 @@ private fun BlockContent(
         "image" -> {
             val img = block.data as? BlockData.Image ?: return
             val imageUrl = img.imageUrl?.takeIf { it.isNotBlank() } ?: return
+            val imageData: Any = decodeDataUrlToBytes(imageUrl) ?: imageUrl
             val width = parseDp(styles?.width)
             val height = parseDp(styles?.height)
             val borderRadius = parseDp(styles?.borderRadius) ?: 0.dp
@@ -528,7 +542,7 @@ private fun BlockContent(
             ) {
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
-                        .data(imageUrl)
+                        .data(imageData)
                         .crossfade(true)
                         .build(),
                     contentDescription = img.alt ?: "",
