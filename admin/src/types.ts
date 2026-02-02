@@ -39,6 +39,11 @@ export interface ButtonBlockData {
   url?: string
 }
 
+export interface ImageBlockData {
+  imageUrl?: string
+  alt?: string
+}
+
 /** Grid/layout block: N columns, each cell holds child blocks. gridColumns = total columns (e.g. 12); each cell.span = columns it spans. */
 export interface GridCell {
   id: string
@@ -55,19 +60,33 @@ export interface GridBlockData {
   cells: GridCell[]
 }
 
-export type BlockData = TextBlockData | HeroBlockData | ButtonBlockData | GridBlockData
+export type BlockData = TextBlockData | HeroBlockData | ButtonBlockData | ImageBlockData | GridBlockData
 
 /**
  * Common block styles (inspector + publish)
  */
 export interface BlockStyles {
   width?: string
+  height?: string
+  /** Padding: use "padding" for all sides, or paddingTop/Right/Bottom/Left for per-side. */
   padding?: string
+  paddingTop?: string
+  paddingRight?: string
+  paddingBottom?: string
+  paddingLeft?: string
+  /** Margin: use "margin" for all sides, or marginTop/Right/Bottom/Left for per-side. */
+  margin?: string
+  marginTop?: string
+  marginRight?: string
+  marginBottom?: string
+  marginLeft?: string
   color?: string
   textAlign?: "left" | "center" | "right"
   contentAlign?: "left" | "center" | "right"
   fontSize?: string
   backgroundColor?: string
+  borderRadius?: string
+  objectFit?: "contain" | "cover" | "fill" | "none" | "scale-down"
   /** Grid/layout: position (static, relative, absolute, fixed, sticky) */
   position?: "static" | "relative" | "absolute" | "fixed" | "sticky"
   /** Grid/layout: inset for position (e.g. "0", "auto") */
@@ -83,7 +102,7 @@ export interface BlockStyles {
  */
 export interface Block {
   id: string
-  type: "text" | "hero" | "button" | "grid"
+  type: "text" | "hero" | "button" | "image" | "grid"
   data: BlockData
   styles?: BlockStyles
 }

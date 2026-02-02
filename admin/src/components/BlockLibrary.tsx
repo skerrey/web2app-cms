@@ -10,10 +10,11 @@ export interface BlockLibraryProps {
   className?: string
 }
 
-const BLOCK_TYPES: Array<{ type: "text" | "hero" | "button"; label: string }> = [
+const BLOCK_TYPES: Array<{ type: "text" | "hero" | "button" | "image"; label: string }> = [
   { type: "text", label: "Text" },
   { type: "hero", label: "Hero" },
-  { type: "button", label: "Button" }
+  { type: "button", label: "Button" },
+  { type: "image", label: "Image" }
 ]
 
 const DraggableBlockButton = ({
@@ -22,7 +23,7 @@ const DraggableBlockButton = ({
   disabled,
   onAdd
 }: {
-  type: "text" | "hero" | "button"
+  type: "text" | "hero" | "button" | "image"
   label: string
   disabled: boolean
   onAdd: () => void

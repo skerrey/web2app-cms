@@ -15,15 +15,30 @@ const CONTENT_ALIGN_OPTIONS: Array<{ value: BlockStyles["contentAlign"]; label: 
   { value: "right", label: "Right" }
 ]
 
+const OBJECT_FIT_OPTIONS: Array<{ value: BlockStyles["objectFit"]; label: string }> = [
+  { value: "cover", label: "Cover (default)" },
+  { value: "contain", label: "Contain" },
+  { value: "fill", label: "Fill" },
+  { value: "none", label: "None" },
+  { value: "scale-down", label: "Scale down" }
+]
+
 const STYLE_CONFIG: Array<{ key: keyof BlockStyles; label: string; placeholder?: string; options?: Array<{ value: string; label: string }> }> = [
   { key: "width", label: "Width", placeholder: "e.g. 100%" },
-  { key: "padding", label: "Padding", placeholder: "e.g. 16px" },
+  { key: "height", label: "Height", placeholder: "e.g. 200px or auto" },
   { key: "color", label: "Color", placeholder: "e.g. #333" },
   { key: "textAlign", label: "Text align", options: TEXT_ALIGN_OPTIONS.map((o) => ({ value: o.value ?? "", label: o.label })) },
   { key: "contentAlign", label: "Content align", options: CONTENT_ALIGN_OPTIONS.map((o) => ({ value: o.value ?? "", label: o.label })) },
   { key: "fontSize", label: "Font size", placeholder: "e.g. 16px" },
-  { key: "backgroundColor", label: "Background color", placeholder: "e.g. #f5f5f5 or blue" }
+  { key: "backgroundColor", label: "Background color", placeholder: "e.g. #f5f5f5 or blue" },
+  { key: "borderRadius", label: "Border radius", placeholder: "e.g. 8px or 50%" },
+  { key: "objectFit", label: "Object fit", options: OBJECT_FIT_OPTIONS.map((o) => ({ value: o.value ?? "", label: o.label })) }
 ]
+
+const SPACING_SIDES = [
+  { allKey: "padding" as const, keys: ["paddingTop", "paddingRight", "paddingBottom", "paddingLeft"] as const, label: "Padding" },
+  { allKey: "margin" as const, keys: ["marginTop", "marginRight", "marginBottom", "marginLeft"] as const, label: "Margin" }
+] as const
 
 type DataFieldConfig =
   | { key: string; label: string; inputType?: "text" }
@@ -53,6 +68,11 @@ const BUTTON_DATA_CONFIG = (pages: Page[]): DataFieldConfig[] => [
   }
 ]
 
+const IMAGE_DATA_CONFIG: DataFieldConfig[] = [
+  { key: "imageUrl", label: "Image URL" },
+  { key: "alt", label: "Alt text" }
+]
+
 export interface EditInspectorProps {
   block: Block
   onUpdateBlock: (block: Block) => void
@@ -64,6 +84,44 @@ export interface EditInspectorProps {
 const inputClass =
   "w-full mt-1 px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed"
 const fieldClass = "flex flex-col gap-1"
+
+/** Display value for padding/margin: strip "px" so user sees "25" not "25px". */
+const spacingDisplayValue = (val: string): string =>
+  val.endsWith("px") ? val.slice(0, -2) : val
+
+/** Normalize input to stored value: "25" -> "25px", "auto" -> "auto". */
+const spacingStoredValue = (input: string): string | undefined => {
+  const t = input.trim()
+  if (t === "") return undefined
+  if (/^[\d.]+$/.test(t)) return t + "px"
+  return t
+}
+
+interface SpacingInputProps {
+  value: string
+  onChange: (value: string | undefined) => void
+  placeholder: string
+  disabled?: boolean
+}
+
+const SpacingInput = ({ value, onChange, placeholder, disabled = false }: SpacingInputProps) => (
+  <div className="flex mt-1 rounded overflow-hidden border border-gray-300 bg-white focus-within:ring-2 focus-within:ring-primary focus-within:border-transparent">
+    <input
+      type="text"
+      value={spacingDisplayValue(value)}
+      onChange={(e) => onChange(spacingStoredValue(e.target.value))}
+      disabled={disabled}
+      placeholder={placeholder}
+      className="flex-1 min-w-0 px-2 py-1.5 text-sm border-0 focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed"
+    />
+    <span
+      className="inline-flex items-center px-2 py-1.5 text-sm text-gray-500 bg-gray-100 border-l border-gray-300 shrink-0"
+      aria-hidden
+    >
+      px
+    </span>
+  </div>
+)
 
 interface ContentInputProps {
   config: DataFieldConfig
@@ -131,6 +189,13 @@ const StyleInputRow = ({ config, value, onChange, disabled = false }: StyleInput
           </option>
         ))}
       </select>
+    ) : config.key === "fontSize" ? (
+      <SpacingInput
+        value={value}
+        onChange={onChange}
+        placeholder="16"
+        disabled={disabled}
+      />
     ) : (
       <input
         type="text"
@@ -167,9 +232,38 @@ const EditInspector = ({ block, onUpdateBlock, onDeleteBlock, pages = [], disabl
     text: TEXT_DATA_CONFIG,
     hero: HERO_DATA_CONFIG,
     button: BUTTON_DATA_CONFIG(pages),
+    image: IMAGE_DATA_CONFIG,
     grid: []
   }
   const currentDataConfig = dataConfigByType[block.type]
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      const dataUrl = reader.result as string
+      updateData({ ...data, imageUrl: dataUrl } as BlockData)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const getRelevantStyles = (): typeof STYLE_CONFIG => {
+    const type = block.type
+    if (type === "text") {
+      return STYLE_CONFIG.filter((s) => ["width", "height", "color", "textAlign", "fontSize", "backgroundColor"].includes(s.key))
+    }
+    if (type === "hero" || type === "button") {
+      return STYLE_CONFIG.filter((s) => ["width", "height", "color", "textAlign", "contentAlign", "fontSize", "backgroundColor"].includes(s.key))
+    }
+    if (type === "image") {
+      return STYLE_CONFIG.filter((s) => ["width", "height", "contentAlign", "backgroundColor", "borderRadius", "objectFit"].includes(s.key))
+    }
+    if (type === "grid") {
+      return STYLE_CONFIG.filter((s) => ["width", "backgroundColor"].includes(s.key))
+    }
+    return STYLE_CONFIG
+  }
 
   return (
     <div className="flex flex-col gap-4 mb-4">
@@ -203,6 +297,19 @@ const EditInspector = ({ block, onUpdateBlock, onDeleteBlock, pages = [], disabl
               disabled={disabled}
             />
           ))}
+          {block.type === "image" && (
+            <label className={fieldClass}>
+              <span className="text-sm font-medium">Upload image</span>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                disabled={disabled}
+                className="mt-1 text-sm file:mr-2 file:px-3 file:py-1.5 file:rounded file:border-0 file:text-sm file:bg-primary file:text-white hover:file:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed"
+              />
+              <span className="text-xs text-gray-500 mt-1">Upload an image (stored as base64 in JSON)</span>
+            </label>
+          )}
           {block.type === "grid" && (
             <>
               <label className={fieldClass}>
@@ -244,13 +351,58 @@ const EditInspector = ({ block, onUpdateBlock, onDeleteBlock, pages = [], disabl
       <div>
         <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Styles</h3>
         <div className="flex flex-col gap-3">
-          {STYLE_CONFIG.map((config) => (
+          {SPACING_SIDES.map(({ allKey, keys, label }) => {
+            const allVal = styleValue(allKey)
+            const hasAnySide = keys.some((k) => styleValue(k) !== "")
+            const placeholderAll = hasAnySide ? "--" : "0"
+            const placeholderSide = allVal ? spacingDisplayValue(allVal) : "0"
+            return (
+              <div key={allKey} className="flex flex-col gap-2">
+                <span className="text-sm font-medium">{label}</span>
+                <div className="grid grid-cols-2 gap-2">
+                  <label className={fieldClass}>
+                    <span className="text-xs text-gray-600">All</span>
+                    <SpacingInput
+                      value={allVal}
+                      onChange={(v) =>
+                        updateStyles({
+                          [allKey]: v,
+                          ...Object.fromEntries(keys.map((k) => [k, undefined]))
+                        })
+                      }
+                      placeholder={placeholderAll}
+                      disabled={disabled}
+                    />
+                  </label>
+                  {keys.map((key) => (
+                    <label key={key} className={fieldClass}>
+                      <span className="text-xs text-gray-600">{key.replace(allKey === "padding" ? "padding" : "margin", "").replace(/^[A-Z]/, (c) => c.toLowerCase())}</span>
+                      <SpacingInput
+                        value={styleValue(key)}
+                        onChange={(v) =>
+                          updateStyles({
+                            [key]: v,
+                            [allKey]: undefined
+                          })
+                        }
+                        placeholder={placeholderSide}
+                        disabled={disabled}
+                      />
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )
+          })}
+          {getRelevantStyles().map((config) => (
             <StyleInputRow
               key={config.key}
               config={config}
               value={
                 config.key === "textAlign" || config.key === "contentAlign"
                   ? (styleValue(config.key) || "left")
+                  : config.key === "objectFit"
+                  ? (styleValue(config.key) || "cover")
                   : styleValue(config.key)
               }
               onChange={(value) => updateStyles({ [config.key]: value || undefined } as BlockStyles)}

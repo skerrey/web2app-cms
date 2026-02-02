@@ -61,18 +61,18 @@ const Inspector = ({
       </div>
       <div className="px-2 py-2">
         {mode === "edit" ? (
-          !block ? (
-            <div className="flex flex-col gap-4">
-              <p className="text-sm text-gray-500">Select a block to edit.</p>
-            </div>
-          ) : (
+          block ? (
             <EditInspector
               block={block}
               onUpdateBlock={onUpdateBlock}
               onDeleteBlock={onDeleteBlock}
               pages={pages}
               disabled={disabled}
-            /> 
+            />
+          ) : (
+            <div className="flex flex-col gap-4">
+              <p className="text-sm text-gray-500">Select a block to edit.</p>
+            </div>
           )
         ) : mode === "layout" ? (
           <LayoutInspector

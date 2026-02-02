@@ -1,4 +1,5 @@
 import type { Block, GridBlockData, BlockStyles, TextBlockData, HeroBlockData, ButtonBlockData } from "../types"
+import { blockStylesToSpacing } from "../utils/blockStyles"
 import TextBlock from "./TextBlock"
 import HeroBlock from "./HeroBlock"
 import ButtonBlock from "./ButtonBlock"
@@ -14,10 +15,10 @@ const GridBlock = ({ data, styles = {} }: GridBlockProps) => {
   const { gridColumns = GRID_COLUMNS_DEFAULT, cells } = data
   const totalCols = gridColumns
   const style: React.CSSProperties = {
+    ...blockStylesToSpacing(styles),
     display: "grid",
     gridTemplateColumns: `repeat(${totalCols}, minmax(0, 1fr))`,
     gap: styles.gap ?? "8px",
-    padding: styles.padding,
     backgroundColor: styles.backgroundColor,
     width: styles.width,
     position: styles.position ?? "static",

@@ -11,10 +11,11 @@ data class Content(
 data class Page(
     val id: String,
     val title: String,
+    val titleStyle: String? = null,
     val blocks: List<Block>
 )
 
-/** Block data by type (hero, button, grid) */
+/** Block data by type (hero, button, image, grid) */
 sealed class BlockData {
     data class Hero(
         val title: String,
@@ -25,6 +26,11 @@ sealed class BlockData {
     data class Button(
         val label: String,
         val url: String? = null
+    ) : BlockData()
+
+    data class Image(
+        val imageUrl: String? = null,
+        val alt: String? = null
     ) : BlockData()
 
     data class Grid(
@@ -38,12 +44,26 @@ data class GridCell(
     val blocks: List<Block>
 )
 
-/** Block styles from editor (backgroundColor, color, textAlign, contentAlign, etc.). */
+/** Block styles from editor (backgroundColor, color, textAlign, contentAlign, padding, margin, width, height, etc.). */
 data class BlockStyles(
     val backgroundColor: String? = null,
     val color: String? = null,
     val textAlign: String? = null,
-    val contentAlign: String? = null
+    val contentAlign: String? = null,
+    val width: String? = null,
+    val height: String? = null,
+    val borderRadius: String? = null,
+    val objectFit: String? = null,
+    val padding: String? = null,
+    val paddingTop: String? = null,
+    val paddingRight: String? = null,
+    val paddingBottom: String? = null,
+    val paddingLeft: String? = null,
+    val margin: String? = null,
+    val marginTop: String? = null,
+    val marginRight: String? = null,
+    val marginBottom: String? = null,
+    val marginLeft: String? = null
 )
 
 /**

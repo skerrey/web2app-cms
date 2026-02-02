@@ -120,7 +120,7 @@ const App = () => {
     | {
         id: string
         type?: string
-        blockType?: "text" | "hero" | "button"
+        blockType?: "text" | "hero" | "button" | "image"
         columns?: number
         pageId?: string
         blockId?: string
@@ -281,9 +281,13 @@ const App = () => {
     setIsDirty(true)
   }
 
-  const handleUpdatePageTitle = (id: string, title: string) => {
-    setPages((prev) => prev.map((p) => (p.id === id ? { ...p, title } : p)))
+  const handleUpdatePage = (pageId: string, updates: Partial<Pick<Page, "title">>) => {
+    setPages((prev) => prev.map((p) => (p.id === pageId ? { ...p, ...updates } : p)))
     setIsDirty(true)
+  }
+
+  const handleUpdatePageTitle = (id: string, title: string) => {
+    handleUpdatePage(id, { title })
   }
 
   const handleDeletePage = (id: string) => {
@@ -544,7 +548,7 @@ const App = () => {
 
   const handleDragStart = (event: DragStartEvent) => {
     const data = event.active.data.current as
-      | { type?: string; blockType?: "text" | "hero" | "button"; columns?: number; pageId?: string }
+      | { type?: string; blockType?: "text" | "hero" | "button" | "image"; columns?: number; pageId?: string }
       | undefined
     setActiveDrag({ id: String(event.active.id), ...data })
   }
@@ -562,7 +566,7 @@ const App = () => {
       | {
           type?: string
           columns?: number
-          blockType?: "text" | "hero" | "button"
+          blockType?: "text" | "hero" | "button" | "image"
           pageId?: string
           blockId?: string
           gridBlockId?: string
@@ -594,7 +598,7 @@ const App = () => {
       const cellId = parts[1]
       if (gridBlockId != null && cellId != null) {
         const blockType = activeData.blockType
-        if (blockType === "text" || blockType === "hero" || blockType === "button") {
+        if (blockType === "text" || blockType === "hero" || blockType === "button" || blockType === "image") {
           const block = createBlock(blockType)
           handleAddBlockToCell(gridBlockId, cellId, block)
         }
@@ -663,7 +667,9 @@ const App = () => {
           ? "Text"
           : activeDrag.blockType === "hero"
             ? "Hero"
-            : "Button"
+            : activeDrag.blockType === "image"
+              ? "Image"
+              : "Button"
       return (
         <div className="px-3 py-2 text-sm rounded border border-gray-400 bg-white shadow-lg opacity-95">
           {label}
@@ -760,7 +766,10 @@ const App = () => {
             <PageList
               pages={pages}
               selectedPageId={selectedPageId}
-              onSelectPage={setSelectedPageId}
+              onSelectPage={(id) => {
+                setSelectedPageId(id)
+                setSelectedBlockId(null)
+              }}
               onAddPage={handleAddPage}
               onDeletePage={handleDeletePage}
               onUpdatePageTitle={handleUpdatePageTitle}
@@ -832,7 +841,6 @@ const App = () => {
             </select>
           </div>
           <PreviewPhone
-            pageTitle={currentPage?.title}
             blocks={currentBlocks}
             device={previewDevice}
           />

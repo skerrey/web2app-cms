@@ -1,4 +1,5 @@
 import type { ButtonBlockData, BlockStyles } from "../types"
+import { blockStylesToSpacing } from "../utils/blockStyles"
 
 export interface ButtonBlockProps {
   data: ButtonBlockData
@@ -19,8 +20,9 @@ const ButtonBlock = ({ data, styles = {} }: ButtonBlockProps) => {
     justifyContent: contentAlignToJustify(styles.contentAlign)
   }
   const style: React.CSSProperties = {
+    ...blockStylesToSpacing(styles),
     width: styles.width ?? "fit-content",
-    padding: styles.padding,
+    height: styles.height,
     color: styles.color,
     textAlign: styles.textAlign ?? "left",
     fontSize: styles.fontSize,

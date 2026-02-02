@@ -9,6 +9,7 @@ import type {
   TextBlockData,
   HeroBlockData,
   ButtonBlockData,
+  ImageBlockData,
   GridBlockData,
   GridCell,
   ContentPayload
@@ -26,8 +27,8 @@ const generateCellId = (): string => {
 }
 
 const defaultDataForType = (
-  type: "text" | "hero" | "button"
-): TextBlockData | HeroBlockData | ButtonBlockData => {
+  type: "text" | "hero" | "button" | "image"
+): TextBlockData | HeroBlockData | ButtonBlockData | ImageBlockData => {
   switch (type) {
     case "text":
       return { text: "" }
@@ -35,12 +36,14 @@ const defaultDataForType = (
       return { title: "", subtitle: "" }
     case "button":
       return { label: "", url: "" }
+    case "image":
+      return { imageUrl: "", alt: "" }
     default:
       return { text: "" }
   }
 }
 
-export const createBlock = (type: "text" | "hero" | "button"): Block => {
+export const createBlock = (type: "text" | "hero" | "button" | "image"): Block => {
   const data = defaultDataForType(type)
   const styles: Block["styles"] = type === "button" ? { width: "fit-content" } : {}
   return {
@@ -78,7 +81,7 @@ export const createGridBlock = (columns: number): Block => {
 
 const normalizeBlock = (raw: RawBlock, _index: number): Block => {
   const type =
-    raw.type === "hero" || raw.type === "button" || raw.type === "grid"
+    raw.type === "hero" || raw.type === "button" || raw.type === "image" || raw.type === "grid"
       ? raw.type
       : "text"
   const id = raw.id ?? generateBlockId()

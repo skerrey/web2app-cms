@@ -25,14 +25,12 @@ const DEVICE_WIDTHS: Record<PreviewDeviceId, number> = {
 }
 
 export interface PreviewPhoneProps {
-  pageTitle?: string
   blocks: Block[]
   device?: PreviewDeviceId
   className?: string
 }
 
 const PreviewPhone = ({
-  pageTitle,
   blocks,
   device = "google-pixel-6-pro",
   className = ""
@@ -46,11 +44,6 @@ const PreviewPhone = ({
 
   const screenContent = (
     <div className="flex flex-col min-h-full bg-white">
-      {pageTitle != null && pageTitle !== "" && (
-        <div className="px-4 py-3 text-sm font-semibold border-b border-gray-200 bg-gray-50 shrink-0">
-          {pageTitle}
-        </div>
-      )}
       <div className="flex-1 p-4 overflow-y-auto min-h-0">
         {blocks.length === 0 ? (
           <p className="text-sm text-gray-500">No blocks on this page.</p>

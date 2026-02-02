@@ -1,4 +1,5 @@
 import type { HeroBlockData, BlockStyles } from "../types"
+import { blockStylesToSpacing } from "../utils/blockStyles"
 
 export interface HeroBlockProps {
   data: HeroBlockData
@@ -19,8 +20,9 @@ const HeroBlock = ({ data, styles = {} }: HeroBlockProps) => {
     justifyContent: contentAlignToJustify(styles.contentAlign)
   }
   const style: React.CSSProperties = {
+    ...blockStylesToSpacing(styles),
     width: styles.width,
-    padding: styles.padding,
+    height: styles.height,
     color: styles.color,
     textAlign: styles.textAlign ?? "left",
     fontSize: styles.fontSize,

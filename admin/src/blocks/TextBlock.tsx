@@ -1,4 +1,5 @@
 import type { TextBlockData, BlockStyles } from "../types"
+import { blockStylesToSpacing } from "../utils/blockStyles"
 
 export interface TextBlockProps {
   data: TextBlockData
@@ -19,8 +20,9 @@ const TextBlock = ({ data, styles = {} }: TextBlockProps) => {
     justifyContent: contentAlignToJustify(styles.contentAlign)
   }
   const style: React.CSSProperties = {
+    ...blockStylesToSpacing(styles),
     width: styles.width,
-    padding: styles.padding,
+    height: styles.height,
     color: styles.color,
     textAlign: styles.textAlign ?? "left",
     fontSize: styles.fontSize,
