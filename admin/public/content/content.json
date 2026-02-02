@@ -9,10 +9,10 @@
           "id": "block_flt1gddba",
           "type": "text",
           "data": {
-            "text": "NEW TEST"
+            "text": "TEST TEST"
           },
           "styles": {},
-          "text": "NEW TEST"
+          "text": "TEST TEST"
         },
         {
           "id": "block_ueufqill8",
@@ -28,13 +28,16 @@
           "type": "grid",
           "data": {
             "columns": 2,
+            "gridColumns": 12,
             "cells": [
               {
                 "id": "cell_c1qk660o1",
+                "span": 6,
                 "blocks": []
               },
               {
                 "id": "cell_79mslz3e0",
+                "span": 6,
                 "blocks": [
                   {
                     "id": "block_f7zanrjkm",

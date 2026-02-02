@@ -2,8 +2,8 @@
   "buildCommand": "npm run build",
   "outputDirectory": "public",
   "rewrites": [
-    { "source": "/admin", "destination": "/admin/index.html" },
-    { "source": "/admin/", "destination": "/admin/index.html" },
-    { "source": "/admin/:path*", "destination": "/admin/index.html" }
+    { "source": "/content/:path*", "destination": "/content/:path*" },
+    { "source": "/assets/:path*", "destination": "/assets/:path*" },
+    { "source": "/:path*", "destination": "/index.html" }
   ]
 }

@@ -29,10 +29,8 @@ execSync("npm install", { cwd: adminDir, stdio: "inherit" })
 console.log("Building admin...")
 execSync("npm run build", { cwd: adminDir, stdio: "inherit" })
 
-console.log("Copying admin build to public/admin/...")
-const publicAdminDir = path.join(publicDir, "admin")
-fs.mkdirSync(publicAdminDir, { recursive: true })
-copyRecursive(adminDistDir, publicAdminDir)
+console.log("Copying admin build to public/ (root)...")
+copyRecursive(adminDistDir, publicDir)
 
 console.log("Copying content to public/content/...")
 const publicContentDir = path.join(publicDir, "content")

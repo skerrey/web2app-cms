@@ -47,7 +47,7 @@ export default defineConfig(() => {
       : undefined
 
   return {
-    base: "/admin",
+    base: "/",
     plugins: [react(), serveContentFromRepo()],
     server: {
       proxy,
