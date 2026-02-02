@@ -246,6 +246,47 @@
             "alt": ""
           },
           "styles": {}
+        },
+        {
+          "id": "block_lf3lb06k4",
+          "type": "grid",
+          "data": {
+            "columns": 2,
+            "gridColumns": 12,
+            "cells": [
+              {
+                "id": "cell_q0i2oui23",
+                "span": 6,
+                "blocks": [
+                  {
+                    "id": "block_gr6cjbvok",
+                    "type": "text",
+                    "data": {
+                      "text": "Text"
+                    },
+                    "styles": {},
+                    "text": "Text"
+                  }
+                ]
+              },
+              {
+                "id": "cell_wn8a4qt4h",
+                "span": 6,
+                "blocks": [
+                  {
+                    "id": "block_h7ce8c1z9",
+                    "type": "hero",
+                    "data": {
+                      "title": "Button",
+                      "subtitle": ""
+                    },
+                    "styles": {}
+                  }
+                ]
+              }
+            ]
+          },
+          "styles": {}
         }
       ]
     }
