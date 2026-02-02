@@ -4,6 +4,7 @@
   "rewrites": [
     { "source": "/content/:path*", "destination": "/content/:path*" },
     { "source": "/assets/:path*", "destination": "/assets/:path*" },
+    { "source": "/app-debug.apk", "destination": "/app-debug.apk" },
     { "source": "/:path*", "destination": "/index.html" }
   ]
 }
