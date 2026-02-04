@@ -6,56 +6,156 @@
       "route": "/",
       "blocks": [
         {
-          "id": "block_flt1gddba",
-          "type": "text",
+          "id": "hero_home",
+          "type": "hero",
           "data": {
-            "text": "TEST TEST"
+            "title": "Web2App CMS",
+            "subtitle": "Edit once, publish everywhere. Manage app content as JSON and render it natively."
           },
-          "styles": {},
-          "text": "TEST TEST"
+          "styles": {
+            "textAlign": "center",
+            "padding": "24px 16px 16px",
+            "backgroundColor": "#f8fafc"
+          }
         },
         {
-          "id": "block_ueufqill8",
-          "type": "text",
+          "id": "logo_home",
+          "type": "image",
           "data": {
-            "text": "Check the latest updates in the News section."
+            "imageUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTIiIGZpbGw9IiMyNTYzZWIiLz48dGV4dCB4PSIzMiIgeT0iNDIiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IndoaXRlIiBmb250LXNpemU9IjIyIiBmb250LWZhbWlseT0ic3lzdGVtLXVpLHNhbnMtc2VyaWYiIGZvbnQtd2VpZ2h0PSJib2xkIj5XMkE8L3RleHQ+PC9zdmc+",
+            "alt": "Web2App logo"
           },
-          "styles": {},
-          "text": "Check the latest updates in the News section."
+          "styles": {
+            "width": "80px",
+            "height": "80px",
+            "margin": "0 auto",
+            "contentAlign": "center",
+            "borderRadius": "12px"
+          }
         },
         {
-          "id": "block_vosyjs76m",
+          "id": "text_intro",
+          "type": "text",
+          "text": "This demo shows what you can build with block-based content: hero sections, images, text, buttons, and responsive grids—all driven by JSON and rendered in the admin and in the app.",
+          "data": {
+            "text": "This demo shows what you can build with block-based content: hero sections, images, text, buttons, and responsive grids—all driven by JSON and rendered in the admin and in the app."
+          },
+          "styles": {
+            "textAlign": "center",
+            "padding": "8px 16px 24px",
+            "color": "#475569",
+            "fontSize": "14px"
+          }
+        },
+        {
+          "id": "grid_features",
           "type": "grid",
           "data": {
             "columns": 2,
             "gridColumns": 12,
             "cells": [
               {
-                "id": "cell_c1qk660o1",
-                "span": 6,
-                "blocks": []
-              },
-              {
-                "id": "cell_79mslz3e0",
+                "id": "cell_1",
                 "span": 6,
                 "blocks": [
                   {
-                    "id": "block_f7zanrjkm",
+                    "id": "grid_text_1",
+                    "type": "text",
+                    "text": "Block editor",
+                    "data": { "text": "Block editor" },
+                    "styles": { "fontSize": "14px", "padding": "12px", "backgroundColor": "#eff6ff", "borderRadius": "8px", "textAlign": "center" }
+                  },
+                  {
+                    "id": "grid_btn_1",
                     "type": "button",
-                    "data": {
-                      "label": "About Page",
-                      "url": "/about"
-                    },
-                    "styles": {
-                      "width": "fit-content",
-                      "backgroundColor": "blue"
-                    }
+                    "data": { "label": "Features", "url": "/features" },
+                    "styles": { "width": "100%", "marginTop": "8px" }
+                  }
+                ]
+              },
+              {
+                "id": "cell_2",
+                "span": 6,
+                "blocks": [
+                  {
+                    "id": "grid_text_2",
+                    "type": "text",
+                    "text": "Native app",
+                    "data": { "text": "Native app" },
+                    "styles": { "fontSize": "14px", "padding": "12px", "backgroundColor": "#f0fdf4", "borderRadius": "8px", "textAlign": "center" }
+                  },
+                  {
+                    "id": "grid_btn_2",
+                    "type": "button",
+                    "data": { "label": "About", "url": "/about" },
+                    "styles": { "width": "100%", "marginTop": "8px" }
                   }
                 ]
               }
             ]
           },
-          "styles": {}
+          "styles": {
+            "padding": "8px 0",
+            "margin": "0 8px"
+          }
+        },
+        {
+          "id": "btn_learn",
+          "type": "button",
+          "data": {
+            "label": "Learn more",
+            "url": "/features"
+          },
+          "styles": {
+            "width": "fit-content",
+            "margin": "16px auto 24px",
+            "contentAlign": "center"
+          }
+        }
+      ]
+    },
+    {
+      "id": "features",
+      "title": "Features",
+      "route": "/features",
+      "blocks": [
+        {
+          "id": "hero_features",
+          "type": "hero",
+          "data": {
+            "title": "Features",
+            "subtitle": "What this CMS can do"
+          },
+          "styles": {
+            "textAlign": "center",
+            "padding": "24px 16px 16px",
+            "backgroundColor": "#eff6ff"
+          }
+        },
+        {
+          "id": "text_features",
+          "type": "text",
+          "text": "• Block-based editing (text, hero, button, image, grid)\n• JSON-driven design—change content without a new app release\n• Admin UI to edit pages and blocks, then publish to GitHub\n• Android app fetches content and renders natively\n• Layouts with responsive grids and nested blocks",
+          "data": {
+            "text": "• Block-based editing (text, hero, button, image, grid)\n• JSON-driven design—change content without a new app release\n• Admin UI to edit pages and blocks, then publish to GitHub\n• Android app fetches content and renders natively\n• Layouts with responsive grids and nested blocks"
+          },
+          "styles": {
+            "padding": "16px",
+            "fontSize": "14px",
+            "color": "#334155"
+          }
+        },
+        {
+          "id": "btn_about",
+          "type": "button",
+          "data": { "label": "About", "url": "/about" },
+          "styles": { "width": "fit-content", "margin": "8px 16px" }
+        },
+        {
+          "id": "btn_home",
+          "type": "button",
+          "data": { "label": "Back to Home", "url": "/" },
+          "styles": { "width": "fit-content", "margin": "8px 16px 24px" }
         }
       ]
     },
@@ -65,13 +165,37 @@
       "route": "/about",
       "blocks": [
         {
-          "id": "block_zwze4fbui",
-          "type": "text",
+          "id": "hero_about",
+          "type": "hero",
           "data": {
-            "text": "This app helps you stay informed."
+            "title": "About",
+            "subtitle": "Web2App CMS demo"
           },
-          "styles": {},
-          "text": "This app helps you stay informed."
+          "styles": {
+            "textAlign": "center",
+            "padding": "24px 16px 16px",
+            "backgroundColor": "#f8fafc"
+          }
+        },
+        {
+          "id": "text_about",
+          "type": "text",
+          "text": "A simple system to manage app content outside the Android app. Admins edit structured JSON in a block-based editor; the app fetches that JSON and renders it natively. Content can change without releasing a new APK.",
+          "data": {
+            "text": "A simple system to manage app content outside the Android app. Admins edit structured JSON in a block-based editor; the app fetches that JSON and renders it natively. Content can change without releasing a new APK."
+          },
+          "styles": {
+            "padding": "16px",
+            "textAlign": "center",
+            "color": "#475569",
+            "fontSize": "14px"
+          }
+        },
+        {
+          "id": "btn_home_about",
+          "type": "button",
+          "data": { "label": "Back to Home", "url": "/" },
+          "styles": { "width": "fit-content", "margin": "16px auto 24px", "contentAlign": "center" }
         }
       ]
     }
