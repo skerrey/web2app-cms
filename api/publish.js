@@ -183,6 +183,17 @@ const handler = async (req, res) => {
 
   try {
     console.log("Publish request started");
+    
+    const previewMode = process.env.PREVIEW === "true";
+    if (previewMode) {
+      res.status(403).json({ 
+        ok: false, 
+        error: "Preview mode enabled. Publishing is disabled. Set PREVIEW=false to enable publishing.",
+        previewMode: true
+      });
+      return;
+    }
+    
     const token = process.env.GITHUB_TOKEN;
     const owner = process.env.GITHUB_OWNER;
     const repo = process.env.GITHUB_REPO;
@@ -190,7 +201,10 @@ const handler = async (req, res) => {
     const deployedRepo = process.env.VERCEL_GIT_REPO_SLUG;
 
     if (!token || !owner || !repo) {
-      res.status(500).json({ ok: false, error: "Missing GitHub environment variables" });
+      res.status(500).json({ 
+        ok: false, 
+        error: "GitHub not configured. Please add GITHUB_TOKEN, GITHUB_OWNER, and GITHUB_REPO to your environment variables." 
+      });
       return;
     }
     if (

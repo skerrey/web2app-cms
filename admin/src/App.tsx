@@ -36,9 +36,50 @@ import PreviewPhone, {
   type PreviewDeviceId
 } from "./components/PreviewPhone"
 import { useScrollTopShadow } from "./utils/useScrollTopShadow"
-import { MdSmartphone } from "react-icons/md";
+import { MdSmartphone } from "react-icons/md"
+import { HiOutlineCog6Tooth } from "react-icons/hi2"
+import SettingsDialog from "./components/SettingsDialog"
 
 type LoadStatus = "idle" | "loading" | "loaded" | "error"
+
+const LOCALSTORAGE_MANIFEST_KEY = "web2app-cms-manifest"
+const LOCALSTORAGE_CONTENT_KEY = "web2app-cms-content"
+
+const saveToLocalStorage = (manifest: Manifest | null, pages: Page[]) => {
+  try {
+    if (manifest) {
+      localStorage.setItem(LOCALSTORAGE_MANIFEST_KEY, JSON.stringify(manifest))
+    }
+    localStorage.setItem(LOCALSTORAGE_CONTENT_KEY, JSON.stringify({ pages }))
+  } catch (err) {
+    console.warn("Failed to save to localStorage:", err)
+  }
+}
+
+const loadFromLocalStorage = (): { manifest: Manifest | null; pages: Page[] | null } => {
+  try {
+    const manifestStr = localStorage.getItem(LOCALSTORAGE_MANIFEST_KEY)
+    const contentStr = localStorage.getItem(LOCALSTORAGE_CONTENT_KEY)
+    
+    const manifest = manifestStr ? JSON.parse(manifestStr) : null
+    const content = contentStr ? JSON.parse(contentStr) : null
+    const pages = content?.pages ?? null
+    
+    return { manifest, pages }
+  } catch (err) {
+    console.warn("Failed to load from localStorage:", err)
+    return { manifest: null, pages: null }
+  }
+}
+
+const clearLocalStorage = () => {
+  try {
+    localStorage.removeItem(LOCALSTORAGE_MANIFEST_KEY)
+    localStorage.removeItem(LOCALSTORAGE_CONTENT_KEY)
+  } catch (err) {
+    console.warn("Failed to clear localStorage:", err)
+  }
+}
 
 const reorderPagesByManifest = (pages: Page[], pagesOrder: string[]): Page[] => {
   const byId = new Map(pages.map((p) => [p.id, p]))
@@ -137,6 +178,7 @@ const App = () => {
   const [editorMode, setEditorMode] = useState<EditorMode>("edit")
   const [reloadKey, setReloadKey] = useState(0)
   const [previewDevice, setPreviewDevice] = useState<PreviewDeviceId>("google-pixel-6-pro")
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
 
   const canvasScrollRef = useRef<HTMLDivElement | null>(null)
   const layoutScrollRef = useRef<HTMLDivElement | null>(null)
@@ -169,11 +211,33 @@ const App = () => {
   }, [setIsPublishing])
 
   useEffect(() => {
+    if (loadStatus === "loaded" && manifest && pages.length > 0) {
+      saveToLocalStorage(manifest, pages)
+    }
+  }, [manifest, pages, loadStatus])
+
+  useEffect(() => {
     let cancelled = false
     const load = async () => {
       setLoadStatus("loading")
       setLoadError(null)
       try {
+        const local = loadFromLocalStorage()
+        
+        if (local.manifest && local.pages && reloadKey === 0) {
+          if (cancelled) return
+          const ordered = reorderPagesByManifest(local.pages, local.manifest.pagesOrder)
+          setManifest(local.manifest)
+          setPages(ordered)
+          setSelectedPageId(ordered[0]?.id ?? null)
+          setSelectedBlockId(null)
+          setIsDirty(false)
+          setLoadStatus("loaded")
+          setLoadError(null)
+          setPublishStatus("Loaded from local storage")
+          return
+        }
+        
         const [rawManifest, rawContent] = await Promise.all([
           loadManifest(),
           loadContent()
@@ -202,6 +266,7 @@ const App = () => {
         setLoadStatus("loaded")
         setLoadError(null)
         setPublishStatus(null)
+        clearLocalStorage()
       } catch (err) {
         if (cancelled) return
         setLoadError(err instanceof Error ? err.message : "Failed to load")
@@ -263,7 +328,14 @@ const App = () => {
         setPublishStatus(SUCCESS_MESSAGE)
         setIsDirty(false)
       } else {
-        setPublishStatus(body.error ?? "Publish failed")
+        const errorMsg = body.error ?? "Publish failed"
+        if (body.previewMode || errorMsg.includes("Preview mode")) {
+          setPublishStatus("Preview mode enabled. Changes saved locally only. Click Settings to learn more.")
+        } else if (errorMsg.includes("GitHub not configured")) {
+          setPublishStatus("GitHub not configured. Changes saved locally. Click Settings to set up publishing.")
+        } else {
+          setPublishStatus(errorMsg)
+        }
       }
     } catch (err) {
       setPublishStatus(err instanceof Error ? err.message : "Publish failed")
@@ -720,10 +792,23 @@ const App = () => {
           <div className="flex justify-end gap-3 mb-1">
             <button
               type="button"
+              className="px-3 py-2 border border-gray-400 bg-white cursor-pointer rounded hover:bg-gray-50"
+              onClick={() => setIsSettingsOpen(true)}
+              aria-label="Settings"
+              title="Settings"
+            >
+              <HiOutlineCog6Tooth size={20} />
+            </button>
+            <button
+              type="button"
               className="px-3 py-2 border border-gray-400 bg-white cursor-pointer rounded disabled:opacity-60 disabled:cursor-not-allowed"
-              onClick={() => setReloadKey((k) => k + 1)}
+              onClick={() => {
+                clearLocalStorage()
+                setReloadKey((k) => k + 1)
+              }}
               disabled={loadStatus === "loading" || isPublishing}
-              aria-label="Reload content"
+              aria-label="Reload content from server"
+              title="Reload from server (discards local changes)"
             >
               Reload
             </button>
@@ -847,6 +932,10 @@ const App = () => {
         </div>
         </section>
       </DndContext>
+      <SettingsDialog 
+        isOpen={isSettingsOpen} 
+        onClose={() => setIsSettingsOpen(false)} 
+      />
     </main>
   )
 }
